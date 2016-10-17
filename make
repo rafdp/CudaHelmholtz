@@ -1,4 +1,3 @@
-
 CC = g++
 CU = nvcc
 CFLAGS = -Wall
@@ -13,10 +12,10 @@ DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
 
 BornCalc.o: BornCalc.cpp BornCalc.h
-	$(CC) $(CFLAGS) -c BpenCalc.cpp
+	$(CC) $(CFLAGS) -c BornCalc.cpp
 	
 CudaCalc.o: CudaCalc.cu CudaCalc.h
-	$(CU) $(CFLAGS) -c BpenCalc.cpp
+	$(CU) $(CFLAGS) -c BornCalc.cpp
 
 main: main.o DataLoader.o
 	$(CC) $(CFLAGS) -o main main.o DataLoader.o
