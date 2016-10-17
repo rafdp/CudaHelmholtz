@@ -5,5 +5,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <math.h>
+#include <complex>
+using std::complex;
 
 #endif

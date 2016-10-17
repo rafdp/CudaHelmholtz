@@ -4,5 +4,6 @@
 #include "includes.h"
 #include "SharedDeclarations.h"
 #include "DataLoader.h"
+#include "BornCalc.h"
 
 #endif

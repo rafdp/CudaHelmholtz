@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "DataLoader.h"
 #include "SharedDeclarations.h"
 
 const int SIZE_X = 500;
