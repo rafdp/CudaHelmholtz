@@ -14,6 +14,9 @@ DataLoader.o: DataLoader.cpp Builder.h
 
 BornCalc.o: BornCalc.cpp BornCalc.h
 	$(CC) $(CFLAGS) -c BpenCalc.cpp
+	
+CudaCalc.o: CudaCalc.cu CudaCalc.h
+	$(CU) $(CFLAGS) -c BpenCalc.cpp
 
 main: main.o DataLoader.o
 	$(CC) $(CFLAGS) -o main main.o DataLoader.o
