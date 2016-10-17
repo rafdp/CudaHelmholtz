@@ -20,7 +20,7 @@ double         c             (Point3D_t r            );
 complex<double> BornForPoint (Point3D_t r, Point3D_t rj)
 {
     Point3D_t dr = {rj.x - r.x, rj.y - r.y, rj.z - r.z};
-    return (DATA.w_ * DATA.w_) * PressureI_ (r) * ((1 / c (r)) * (1 / c (r))) * GreenFunction (c (r), dr);
+    return (DATA.w_ * DATA.w_) * PressureI_ (r) * ((1 / c (r)) * (1 / c (r))) * GreenFunction (dr, c(r));
 }
 
 complex<double> GreenFunction (Point3D_t r, double c)
