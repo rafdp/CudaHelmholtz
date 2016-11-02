@@ -1,22 +1,19 @@
-CC = g++
+CC = g++ 
 CU = nvcc
-CFLAGS = -Wall
+CFLAGS = -std=c++11 -Wall
 
 
-
-
-main.o: main.cpp Builder.h
-	$(CC) $(CFLAGS) -c main.cpp
+main: main.o DataLoader.o CudaCalc.o
+	$(CC) $(CFLAGS) -o main main.o DataLoader.o CudaCalc.o
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
-
 BornCalc.o: BornCalc.cpp BornCalc.h
-	$(CC) $(CFLAGS) -c BornCalc.cpp
-	
+	$(CC) $(CFLAGS) -c BornCalc.cpp	
 CudaCalc.o: CudaCalc.cu CudaCalc.h
-	$(CU) $(CFLAGS) -c BornCalc.cpp
-
+	$(CU) -std=c++11 -c BornCalc.cpp
 main: main.o DataLoader.o
 	$(CC) $(CFLAGS) -o main main.o DataLoader.o
+main.o: main.cpp Builder.h
+	$(CC) $(CFLAGS) -c main.cpp
 	

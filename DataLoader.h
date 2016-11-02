@@ -1,3 +1,5 @@
+#ifndef DATA_LOADER_INCLUDED
+#define DATA_LOADER_INCLUDED
 
 #include "includes.h"
 
@@ -24,3 +26,4 @@ struct InputData_t
     void LoadData ();
 };
 
+#endif
