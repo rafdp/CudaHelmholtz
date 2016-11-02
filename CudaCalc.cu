@@ -1,30 +1,26 @@
 
 //=================================================================
 
-#include "BornCalc.h"
+#include "CudaCalc.h"
 
 //-----------------------------------------------------------------
 
-const int BLOCK_SIZE_ = 10;
-const int GRID_SIZE_  = 50;
-
-//-----------------------------------------------------------------
-
-__global__ void BornForRecievers (int * P_recv);
-
-//-----------------------------------------------------------------
-
-__global__ void BornForRecievers (int * P_recv)
+__global__ void BornForRecieversKernel (complex<double> * P_recv, InputData_t* INPUT_DATA_PTR)
+//cannot pass host data pointer to kernel, need to copy to device memory
 {
-    Point3D r = {threadIdx.x + blockIdx.x * BLOCK_SIZE_;
-                 threadIdx.y + blockIdx.y * BLOCK_SIZE_;
-                 threadIdx.z + blockIdx.z * BLOCK_SIZE_}
+    /*Point3D_t r = {static_cast<int> (threadIdx.x + blockIdx.x * BLOCK_SIZE_),
+                   static_cast<int> (threadIdx.y + blockIdx.y * BLOCK_SIZE_),
+                   static_cast<int> (threadIdx.z + blockIdx.z * BLOCK_SIZE_)};
+//static cast needed for unsigned int -> int warning
 
-    int recv_num = sizeof (P_recv);
+    int recv_num = INPUT_DATA_PTR->recievers_.size ();
     for (int i = 0; i < recv_num; i ++)
     {
-        P_recv [i] += BornForPoint (r, DATA.recievers_ [i]);
-    }
+        P_recv [i] += BornForPoint (r, INPUT_DATA_PTR->recievers_ [i]);
+    }*/
+//There is a major problem with this kernel code: CUDA cannot call functions that are implemented on host (e.g. BornForPoint). 
+//You need to rewrite them on the gpu via cuda
+
 }
 
 //=================================================================

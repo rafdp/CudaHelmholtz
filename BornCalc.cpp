@@ -15,7 +15,7 @@ double          SoundSpeed    (Point3D_t r            );
 complex<double> BornForPoint (Point3D_t r, Point3D_t rj)
 {
     Point3D_t dr = {rj.x - r.x, rj.y - r.y, rj.z - r.z};
-    return (INPUT_DATA_PTR->w_ * INPUT_DATA_PTR->w_) * PressureI_ (r) * ((1 / SoundSpeed (r)) * (1 / SoundSpeed (r))) * GreenFunction (dr, c(r));
+    return (INPUT_DATA_PTR->w_ * INPUT_DATA_PTR->w_) * PressureI_ (r) * ((1 / SoundSpeed (r)) * (1 / SoundSpeed (r))) * GreenFunction (dr, SoundSpeed(r));
 }
 
 complex<double> GreenFunction (Point3D_t r, double c)
@@ -27,7 +27,7 @@ complex<double> GreenFunction (Point3D_t r, double c)
 
 complex<double> PressureI_ (Point3D_t r)
 {
-   return  GreenFunction (r, c (r));
+   return  GreenFunction (r, SoundSpeed (r));
 }
 
 double SoundSpeed (Point3D_t r)

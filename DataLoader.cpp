@@ -22,8 +22,8 @@ void InputData_t::LoadData ()
     fread (&anomalySize_, sizeof (Point3D_t), 1, load);
     int N = 0;
     fread (&N, sizeof (int), 1, load);
-    receivers_.resize (N);
-    fread (receivers_.data (), sizeof (Point3D_t), N, load);
+    recievers_.resize (N);
+    fread (recievers_.data (), sizeof (Point3D_t), N, load);
 }
 
 

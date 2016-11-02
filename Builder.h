@@ -6,5 +6,5 @@
 #include "DataLoader.h"
 extern InputData_t* INPUT_DATA_PTR;
 #include "BornCalc.h"
-
+#include "CudaCalc.h"
 #endif

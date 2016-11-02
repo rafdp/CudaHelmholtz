@@ -21,7 +21,7 @@ struct InputData_t
     double alpha_;
     Point3D_t anomalyPos_;
     Point3D_t anomalySize_;
-    std::vector<Point3D_t> receivers_;
+    std::vector<Point3D_t> recievers_;
     
     void LoadData ();
 };

@@ -1,6 +1,9 @@
-
+#ifndef CUDA_CALC_INCLUDED
+#define CUDA_CALC_INCLUDED
 //=================================================================
 
+#include "includes.h"
+#include "DataLoader.h"
 #include "BornCalc.h"
 
 //-----------------------------------------------------------------
@@ -10,6 +13,8 @@ const int GRID_SIZE_  = 50;
 
 //-----------------------------------------------------------------
 
-__global__ void BornForRecievers (int * P_recv);
+extern "C"
+void ExternalKernelCaller (InputData_t* INPUT_DATA_PTR);
 
 //=================================================================
+#endif
