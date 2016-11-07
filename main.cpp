@@ -1,4 +1,4 @@
- #include "BornThreadCPU.h"
+#include "Builder.h"
 #include <thread>
 
 //using namespace std;
@@ -37,7 +37,7 @@ int main ()
     t3.join();
     t4.join();*/
 
-    for (int n; n < recv_num; n ++)
+    for (int n = 0; n < recv_num; n ++)
         {
             complex <double> result = 0;
             for (int i = inputData.anomalyPos_.x; i < inputData.anomalySize_.x + inputData.anomalyPos_.x; i ++)
@@ -45,7 +45,7 @@ int main ()
                     for (int k = inputData.anomalyPos_.z; k < inputData.anomalySize_.z + inputData.anomalyPos_.z; k ++)
                     {
                         Point3D_t r = {i, j, k};
-                        result += BornForPoint (r, *(recv_array + n));
+                        result += BornForPoint (r, *(recv_array + n)) * inputData.V_;
                     }
 
              fprintf (output1, "Reciever (%d, %d, %d): %e + %e i\r\n", (recv_array + n) -> x ,

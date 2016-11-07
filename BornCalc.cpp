@@ -39,7 +39,7 @@ double SoundSpeed (Point3D_t r)
         r.y <= INPUT_DATA_PTR->anomalyPos_.y + INPUT_DATA_PTR->anomalySize_.y &&
         r.x >= INPUT_DATA_PTR->anomalyPos_.z &&
         r.z <= INPUT_DATA_PTR->anomalyPos_.z + INPUT_DATA_PTR->anomalySize_.z)
-        return INPUT_DATA_PTR->c_ * INPUT_DATA_PTR->alpha_;
+        return INPUT_DATA_PTR->c_ * (1.0+INPUT_DATA_PTR->alpha_);
     else
         return INPUT_DATA_PTR->c_;
 }

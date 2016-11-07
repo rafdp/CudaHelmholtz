@@ -42,7 +42,7 @@ rc: main
 	@./main ||:
 	@echo "------Execution ended" ||:
 	@echo
-	make clean
+	make c
 
 # to compile and run: make r
 # to just compile: make
