@@ -15,7 +15,7 @@ int main ()
 
     printf ("%g\n", inputData.w_);
 
-    Point3D_t* recv_array = inputData.recievers_.data();
+    Point3D_t_<double>* recv_array = inputData.recievers_.data();
 
     FILE * output1 = fopen ("output_1.txt", "wb");
     /*FILE * output2 = fopen ("output_2.txt", "wb");
@@ -36,23 +36,22 @@ int main ()
     t2.join();
     t3.join();
     t4.join();*/
-
     for (int n = 0; n < recv_num; n ++)
-        {
+    {
             complex <double> result = 0;
             for (int i = inputData.anomalyPos_.x; i < inputData.anomalySize_.x + inputData.anomalyPos_.x; i ++)
                 for (int j = inputData.anomalyPos_.y; j < inputData.anomalySize_.y + inputData.anomalyPos_.y; j ++)
                     for (int k = inputData.anomalyPos_.z; k < inputData.anomalySize_.z + inputData.anomalyPos_.z; k ++)
                     {
-                        Point3D_t r = {i, j, k};
-                        result += BornForPoint (r, *(recv_array + n)) * inputData.V_;
+                        Point3D_t r = {i*1.0, j*1.0, k*1.0};
+                        result += BornForPoint (r, *(recv_array + n));
                     }
 
-             fprintf (output1, "Reciever (%d, %d, %d): %e + %e i\r\n", (recv_array + n) -> x ,
+             fprintf (output1, "Reciever (%g, %g, %g): %e + %e i\r\n", (recv_array + n) -> x ,
                                                                      (recv_array + n) -> y ,
                                                                      (recv_array + n) -> z ,
                                                                      std::real (result), std::imag(result));
-             printf ("Reciever (%d, %d, %d): %e + %e i\n", (recv_array + n) -> x ,
+             printf ("Reciever (%.5g, %g, %g): %e + %e i\n", (recv_array + n) -> x ,
                                                           (recv_array + n) -> y ,
                                                           (recv_array + n) -> z ,
                                                           std::real (result), std::imag(result));

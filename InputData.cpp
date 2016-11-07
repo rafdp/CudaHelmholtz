@@ -31,7 +31,7 @@ const double RECIEVER_X_BEGIN_WORLD = 500,
              RECIEVER_X_END_WORLD   = 1500,
              RECIEVER_Y_WORLD       = 0,
              RECIEVER_Z_WORLD       = 0,
-             N_RECIEVERS            = 100;
+             N_RECIEVERS            = 99;
 
 const double OMEGA = 5 * 2 * 3.141592;
 const double SOUND_SPEED = 3000;
@@ -41,20 +41,22 @@ int main ()
 {
     FILE* inputData = fopen (INPUT_FILE, "wb");
     
-    int coords[3] = {SOURCE_POS_X, SOURCE_POS_Y, SOURCE_POS_Z};
-    fwrite (coords, sizeof (int), 3, inputData);
+    double coords[3] = {SOURCE_POS_X, SOURCE_POS_Y, SOURCE_POS_Z};
+    fwrite (coords, sizeof (double), 3, inputData);
     
     double params[3] = {OMEGA, SOUND_SPEED, ALPHA};
     fwrite (params, sizeof (double), 3, inputData);
 
     
-    int anomalyData[3] = {ANOMALY_POS_X, ANOMALY_POS_Y, ANOMALY_POS_Z};
-    fwrite (anomalyData, sizeof (int), 3, inputData);
+    double anomalyData[3] = {ANOMALY_POS_X, ANOMALY_POS_Y, ANOMALY_POS_Z};
+    fwrite (anomalyData, sizeof (double), 3, inputData);
     
-    int anomalySize[3] = {DISCRETIZATION_NX, DISCRETIZATION_NY, DISCRETIZATION_NZ};
-    fwrite (anomalySize, sizeof (int), 3, inputData);
+    double anomalySize[3] = {DISCRETIZATION_NX, DISCRETIZATION_NY, DISCRETIZATION_NZ};
+    fwrite (anomalySize, sizeof (double), 3, inputData);
     
-    double V = (ANOMALY_SIZE_WORLD_X * ANOMALY_SIZE_WORLD_Y * ANOMALY_SIZE_WORLD_Z) / (DISCRETIZATION_NX * DISCRETIZATION_NY * DISCRETIZATION_NZ);
+    double V = (ANOMALY_SIZE_WORLD_X * ANOMALY_SIZE_WORLD_Y * ANOMALY_SIZE_WORLD_Z) / (DISCRETIZATION_NX * DISCRETIZATION_NY * DISCRETIZATION_NZ * 1.0);
+    
+    printf ("----writing V: %g\n", V);
     
     fwrite (&V, sizeof (double), 1, inputData);
     
@@ -63,14 +65,14 @@ int main ()
     
     fwrite (&Nreceivers, sizeof (int), 1, inputData);
     
-    double d = (RECIEVER_X_END_WORLD - RECIEVER_X_BEGIN_WORLD)/Nreceivers;
+    double d = (RECIEVER_X_END_WORLD - RECIEVER_X_BEGIN_WORLD)/(Nreceivers*1.0);
 
     for (int i = 0; i < Nreceivers; i++)
     {
-        int coords_[3] = {d*i + RECIEVER_X_BEGIN_WORLD,
-                          RECIEVER_Y_WORLD,
-                          RECIEVER_Z_WORLD};
-        fwrite (coords_, sizeof (int), 3, inputData);
+        double coords_[3] = {d*i + RECIEVER_X_BEGIN_WORLD,
+                             RECIEVER_Y_WORLD,
+                             RECIEVER_Z_WORLD};
+        fwrite (coords_, sizeof (double), 3, inputData);
 
     }
     

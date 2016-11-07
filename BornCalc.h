@@ -12,14 +12,20 @@ const double         PI_ = 3.14159      ;
 //-----------------------------------------------------------------
 
 
-complex<double> BornForPoint (Point3D_t r, Point3D_t rj);
+complex<double> BornForPoint  (Point3D_t r, Point3D_t rj);
+//complex<double> BornForPoint  (Point3D_t r, Point3D_t_<double> rj);
 
 complex<double> GreenFunction (Point3D_t r);
+//complex<double> GreenFunction (Point3D_t_<double> r);
 
-complex<double> PressureI_ (Point3D_t r);
+complex<double> PressureI_    (Point3D_t r);
+//complex<double> PressureI_    (Point3D_t_<double> r);
 
-double SoundSpeed    (Point3D_t r);
-double d_Slowness    (Point3D_t r);
+double          SoundSpeed    (Point3D_t r);
+//double          SoundSpeed    (Point3D_t_<double> r);
+
+double          d_Slowness    (Point3D_t r);
+//double          d_Slowness    (Point3D_t_<double> r);
 
 
 //=================================================================

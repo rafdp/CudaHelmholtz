@@ -1,5 +1,12 @@
 
 #include "Builder.h"
+
+template <>
+double Point3D_t_<double>::Len ()
+{
+    return sqrt(x*x*1.0 + y*y + z*z);
+}
+
 template <>
 double Point3D_t_<int>::Len ()
 {
@@ -20,10 +27,11 @@ void InputData_t::LoadData ()
     fread (&anomalyPos_, sizeof (Point3D_t), 1, load);
     fread (&anomalySize_, sizeof (Point3D_t), 1, load);
     fread (&V_, sizeof (double), 1, load);
+    printf ("----reading V: %g\n", V_);
     int N = 0;
     fread (&N, sizeof (int), 1, load);
     recievers_.resize (N);
-    fread (recievers_.data (), sizeof (Point3D_t), N, load);
+    fread (recievers_.data (), sizeof (Point3D_t_<double>), N, load);
 }
 
 

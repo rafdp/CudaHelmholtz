@@ -13,7 +13,7 @@ struct Point3D_t_
     double Len ();
 };
 
-typedef Point3D_t_<int> Point3D_t;
+typedef Point3D_t_<double> Point3D_t;
 
 struct InputData_t
 {
@@ -24,7 +24,7 @@ struct InputData_t
     Point3D_t anomalyPos_;
     Point3D_t anomalySize_;
     double V_;
-    std::vector<Point3D_t> recievers_;
+    std::vector<Point3D_t_<double> > recievers_;
     
     void LoadData ();
 };
