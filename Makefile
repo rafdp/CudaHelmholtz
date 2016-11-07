@@ -5,8 +5,10 @@ CU = nvcc
 CFLAGS = -std=c++11 -Wall
 
 
-main: DataLoader.o BornCalc.o CudaCalcCaller.o main.o 
-	$(CU) -o main DataLoader.o BornCalc.o CudaCalcCaller.o main.o 
+main: DataLoader.o BornCalc.o main.o 
+#CudaCalcCaller.o 
+	$(CC) -o main DataLoader.o BornCalc.o main.o
+# CudaCalcCaller.o 
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
