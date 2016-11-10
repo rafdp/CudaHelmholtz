@@ -19,19 +19,19 @@ const int DISCRETIZATION_NX = 10,
           DISCRETIZATION_NY = 10,
           DISCRETIZATION_NZ = 10;
 
-const int ANOMALY_POS_X = (ANOMALY_POS_WORLD_X * ANOMALY_SIZE_WORLD_X) / DISCRETIZATION_NX,
-          ANOMALY_POS_Y = (ANOMALY_POS_WORLD_Y * ANOMALY_SIZE_WORLD_Y) / DISCRETIZATION_NY,
-          ANOMALY_POS_Z = (ANOMALY_POS_WORLD_Z * ANOMALY_SIZE_WORLD_Z) / DISCRETIZATION_NZ;
+const int ANOMALY_POS_X = (ANOMALY_POS_WORLD_X * DISCRETIZATION_NX) / ANOMALY_SIZE_WORLD_X,
+          ANOMALY_POS_Y = (ANOMALY_POS_WORLD_Y * DISCRETIZATION_NY) / ANOMALY_SIZE_WORLD_Y,
+          ANOMALY_POS_Z = (ANOMALY_POS_WORLD_Z * DISCRETIZATION_NZ) / ANOMALY_SIZE_WORLD_Z;
 
-const int SOURCE_POS_X = (SOURCE_POS_WORLD_X * ANOMALY_SIZE_WORLD_X) / DISCRETIZATION_NX,
-          SOURCE_POS_Y = (SOURCE_POS_WORLD_Y * ANOMALY_SIZE_WORLD_Y) / DISCRETIZATION_NY,
-          SOURCE_POS_Z = (SOURCE_POS_WORLD_Z * ANOMALY_SIZE_WORLD_Z) / DISCRETIZATION_NZ;
+const int SOURCE_POS_X = (SOURCE_POS_WORLD_X * DISCRETIZATION_NX) / ANOMALY_SIZE_WORLD_X,
+          SOURCE_POS_Y = (SOURCE_POS_WORLD_Y * DISCRETIZATION_NY) / ANOMALY_SIZE_WORLD_Y,
+          SOURCE_POS_Z = (SOURCE_POS_WORLD_Z * DISCRETIZATION_NZ) / ANOMALY_SIZE_WORLD_Z;
 
 const double RECIEVER_X_BEGIN_WORLD = 500,
              RECIEVER_X_END_WORLD   = 1500,
              RECIEVER_Y_WORLD       = 0,
              RECIEVER_Z_WORLD       = 0,
-             N_RECIEVERS            = 99;
+             N_RECIEVERS            = 100;
 
 const double OMEGA = 5 * 2 * 3.141592;
 const double SOUND_SPEED = 3000;
@@ -54,11 +54,9 @@ int main ()
     double anomalySize[3] = {DISCRETIZATION_NX, DISCRETIZATION_NY, DISCRETIZATION_NZ};
     fwrite (anomalySize, sizeof (double), 3, inputData);
     
-    double V = (ANOMALY_SIZE_WORLD_X * ANOMALY_SIZE_WORLD_Y * ANOMALY_SIZE_WORLD_Z) / (DISCRETIZATION_NX * DISCRETIZATION_NY * DISCRETIZATION_NZ * 1.0);
+    double block_size[3] = {ANOMALY_SIZE_WORLD_X / (DISCRETIZATION_NX*1.0), ANOMALY_SIZE_WORLD_Y / (DISCRETIZATION_NY*1.0), ANOMALY_SIZE_WORLD_Z / (DISCRETIZATION_NZ*1.0)};
     
-    printf ("----writing V: %g\n", V);
-    
-    fwrite (&V, sizeof (double), 1, inputData);
+    fwrite (&block_size, sizeof (double), 3, inputData);
     
     
     int Nreceivers = N_RECIEVERS;
@@ -69,9 +67,9 @@ int main ()
 
     for (int i = 0; i < Nreceivers; i++)
     {
-        double coords_[3] = {d*i + RECIEVER_X_BEGIN_WORLD,
-                             RECIEVER_Y_WORLD,
-                             RECIEVER_Z_WORLD};
+        double coords_[3] = {(d*i + RECIEVER_X_BEGIN_WORLD) / block_size[0],
+                             RECIEVER_Y_WORLD / block_size[1],
+                             RECIEVER_Z_WORLD / block_size[2]};
         fwrite (coords_, sizeof (double), 3, inputData);
 
     }

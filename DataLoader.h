@@ -3,17 +3,17 @@
 
 #include "includes.h"
 
-template <class T>
-struct Point3D_t_
+struct Point3D_t
 {
-    T x;
-    T y;
-    T z;
+    double x;
+    double y;
+    double z;
     
     double Len ();
 };
 
-typedef Point3D_t_<double> Point3D_t;
+Point3D_t ToPhysical (Point3D_t p);
+Point3D_t ToDiscrete (Point3D_t p);
 
 struct InputData_t
 {
@@ -23,8 +23,8 @@ struct InputData_t
     double alpha_;
     Point3D_t anomalyPos_;
     Point3D_t anomalySize_;
-    double V_;
-    std::vector<Point3D_t_<double> > recievers_;
+    Point3D_t block_size_;
+    std::vector<Point3D_t> recievers_;
     
     void LoadData ();
 };

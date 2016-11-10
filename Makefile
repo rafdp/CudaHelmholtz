@@ -44,10 +44,21 @@ rc: main
 	@echo
 	make c
 
+rcp: main
+	g++ -o InputDataExec InputData.cpp
+	./InputDataExec
+	@echo
+	@echo "------Execution begins: " ||:
+	@./main ||:
+	@echo "------Execution ended" ||:
+	@echo
+	gnuplot plot.p
+	make c
+
 # to compile and run: make r
 # to just compile: make
 # to clean: make c
 # to compile, run and clean: make rc
-
+# to compile, run, plot and clean: make rcp
 
 	

@@ -5,61 +5,48 @@
 
 //-----------------------------------------------------------------
 
-complex<double> BornForPoint  (Point3D_t r, Point3D_t rj);
-//complex<double> BornForPoint  (Point3D_t r, Point3D_t_<double> rj);
+complex<double> BornForPoint  (Point3D_t rEmitter, Point3D_t rReceiver);
 
-complex<double> GreenFunction (Point3D_t r);
-//complex<double> GreenFunction (Point3D_t_<double> r);
+complex<double> GreenFunction (Point3D_t rEmitter, Point3D_t rReceiver);
 
-complex<double> PressureI_    (Point3D_t r);
-//complex<double> PressureI_    (Point3D_t_<double> r);
+complex<double> PressureI_    (Point3D_t rReceiver);
 
-double          SoundSpeed    (Point3D_t r);
-//double          SoundSpeed    (Point3D_t_<double> r);
+double          SoundSpeed    (Point3D_t rEmitter);
 
 double          d_Slowness    (Point3D_t r);
-//double          d_Slowness    (Point3D_t_<double> r);
 
 //-----------------------------------------------------------------
 
-complex<double> BornForPoint (Point3D_t r, Point3D_t rj)
+complex<double> BornForPoint (Point3D_t rEmitter, Point3D_t rReceiver)
 {
-    Point3D_t dr = {rj.x - r.x, rj.y - r.y, rj.z - r.z};
-    return INPUT_DATA_PTR->V_ * (INPUT_DATA_PTR->w_ * INPUT_DATA_PTR->w_) * PressureI_ (r) * d_Slowness (r) * GreenFunction (dr);
+    rEmitter = ToPhysical (rEmitter);
+    rReceiver = ToPhysical (rReceiver);
+    
+    static const double K = INPUT_DATA_PTR->block_size_.x * INPUT_DATA_PTR->block_size_.y * INPUT_DATA_PTR->block_size_.z * INPUT_DATA_PTR->w_ * INPUT_DATA_PTR->w_;
+    
+    
+    return K * PressureI_ (rEmitter) * d_Slowness (rEmitter) * GreenFunction (rEmitter,rReceiver);
 }
-/*
-complex<double> BornForPoint (Point3D_t r, Point3D_t_<double> rj)
-{
-    Point3D_t_<double> dr = {rj.x - r.x, rj.y - r.y, rj.z - r.z};
-    return INPUT_DATA_PTR->V_ * (INPUT_DATA_PTR->w_ * INPUT_DATA_PTR->w_) * PressureI_ (r) * d_Slowness (r) * GreenFunction (dr);
-}*/
 
-complex<double> GreenFunction (Point3D_t r)
+complex<double> GreenFunction (Point3D_t rEmitter, Point3D_t rReceiver)
 {
-    double k = INPUT_DATA_PTR->w_ / SoundSpeed (r);
-    if (r.Len() == 0.0) return {};
-    else return exp (I_ * r.Len() * k) / (4 * PI_ * r.Len());
+    double k = INPUT_DATA_PTR->w_ / SoundSpeed (rEmitter);
+    Point3D_t dr = {rReceiver.x - rEmitter.x, rReceiver.y - rEmitter.y, rReceiver.z - rEmitter.z};
+    double len = dr.Len ();
+    return exp (I_ * len * k) / (4 * PI_ * len);
 }
-/*
-complex<double> GreenFunction (Point3D_t_<double> r)
-{
-    double k = INPUT_DATA_PTR->w_ / SoundSpeed (r);
-    if (r.Len() == 0.0) return {};
-    else return exp (I_ * r.Len() * k) / (4 * PI_ * r.Len());
-}*/
 
-complex<double> PressureI_ (Point3D_t r)
+complex<double> PressureI_ (Point3D_t rReceiver)
 {
-   return  GreenFunction (r);
+    static const Point3D_t sourcePhysical = ToPhysical (INPUT_DATA_PTR->sourcePos_);
+    return GreenFunction (sourcePhysical, rReceiver);
 }
-/*
-complex<double> PressureI_ (Point3D_t_<double> r)
-{
-    return  GreenFunction (r);
-}*/
 
 double SoundSpeed (Point3D_t r)
 {
+    r = ToDiscrete (r);
+    
+    
     if (r.x >= INPUT_DATA_PTR->anomalyPos_.x &&
         r.x <= INPUT_DATA_PTR->anomalyPos_.x + INPUT_DATA_PTR->anomalySize_.x &&
         r.y >= INPUT_DATA_PTR->anomalyPos_.y &&
@@ -70,28 +57,10 @@ double SoundSpeed (Point3D_t r)
     else
         return INPUT_DATA_PTR->c_;
 }
-/*
-double SoundSpeed (Point3D_t_<double> r)
-{
-    if (r.x >= INPUT_DATA_PTR->anomalyPos_.x &&
-        r.x <= INPUT_DATA_PTR->anomalyPos_.x + INPUT_DATA_PTR->anomalySize_.x &&
-        r.y >= INPUT_DATA_PTR->anomalyPos_.y &&
-        r.y <= INPUT_DATA_PTR->anomalyPos_.y + INPUT_DATA_PTR->anomalySize_.y &&
-        r.x >= INPUT_DATA_PTR->anomalyPos_.z &&
-        r.z <= INPUT_DATA_PTR->anomalyPos_.z + INPUT_DATA_PTR->anomalySize_.z)
-        return INPUT_DATA_PTR->c_ * (1.0+INPUT_DATA_PTR->alpha_);
-    else
-        return INPUT_DATA_PTR->c_;
-}*/
 
-double d_Slowness    (Point3D_t r)
+double d_Slowness    (Point3D_t rEmitter)
 {
-    return (1 / (SoundSpeed (r) * SoundSpeed (r))) - (1 / (INPUT_DATA_PTR -> c_ * INPUT_DATA_PTR -> c_));
+    return (1 / (SoundSpeed (rEmitter) * SoundSpeed (rEmitter))) - (1 / (INPUT_DATA_PTR -> c_ * INPUT_DATA_PTR -> c_));
 }
-/*
-double d_Slowness    (Point3D_t_<double> r)
-{
-    return (1 / (SoundSpeed (r) * SoundSpeed (r))) - (1 / (INPUT_DATA_PTR -> c_ * INPUT_DATA_PTR -> c_));
-}*/
 
 //=================================================================

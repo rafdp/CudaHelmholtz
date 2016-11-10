@@ -1,14 +1,7 @@
 
 #include "Builder.h"
 
-template <>
-double Point3D_t_<double>::Len ()
-{
-    return sqrt(x*x*1.0 + y*y + z*z);
-}
-
-template <>
-double Point3D_t_<int>::Len ()
+double Point3D_t::Len ()
 {
     return sqrt(x*x*1.0 + y*y + z*z);
 }
@@ -26,14 +19,31 @@ void InputData_t::LoadData ()
     alpha_ = params[2];
     fread (&anomalyPos_, sizeof (Point3D_t), 1, load);
     fread (&anomalySize_, sizeof (Point3D_t), 1, load);
-    fread (&V_, sizeof (double), 1, load);
-    printf ("----reading V: %g\n", V_);
+    fread (&block_size_, sizeof (Point3D_t), 1, load);
+    printf ("block_size_ %g %g %g\n", block_size_.x, block_size_.y, block_size_.z);
     int N = 0;
     fread (&N, sizeof (int), 1, load);
     recievers_.resize (N);
-    fread (recievers_.data (), sizeof (Point3D_t_<double>), N, load);
+    fread (recievers_.data (), sizeof (Point3D_t), N, load);
 }
 
+Point3D_t ToPhysical (Point3D_t p)
+{
+    return Point3D_t {
+        p.x*INPUT_DATA_PTR->block_size_.x + INPUT_DATA_PTR->block_size_.x / 2,
+        p.y*INPUT_DATA_PTR->block_size_.y + INPUT_DATA_PTR->block_size_.y / 2,
+        p.z*INPUT_DATA_PTR->block_size_.z + INPUT_DATA_PTR->block_size_.z / 2};
+    
+}
+
+
+Point3D_t ToDiscrete (Point3D_t p)
+{
+    return Point3D_t {int(p.x/INPUT_DATA_PTR->block_size_.x)*1.0,
+                      int(p.y/INPUT_DATA_PTR->block_size_.y)*1.0,
+                      int(p.z/INPUT_DATA_PTR->block_size_.z)*1.0};
+
+}
 
 
 
