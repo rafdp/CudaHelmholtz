@@ -19,7 +19,7 @@ double          d_Slowness    (Point3D_t r);
 
 complex<double> BornForPoint (Point3D_t rEmitter, Point3D_t rReceiver)
 {
-    rEmitter = ToPhysical (rEmitter);
+    rEmitter = ToPhysicalCenter (rEmitter);
     rReceiver = ToPhysical (rReceiver);
     
     static const double K = INPUT_DATA_PTR->block_size_.x * INPUT_DATA_PTR->block_size_.y * INPUT_DATA_PTR->block_size_.z * INPUT_DATA_PTR->w_ * INPUT_DATA_PTR->w_;

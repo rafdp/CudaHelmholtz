@@ -25,11 +25,16 @@ void Thread_ (ThreadData_t* threadData)
          n ++)
     {
         complex <double> result = 0;
-        for (int i = inputData.anomalyPos_.x; i < inputData.anomalySize_.x + inputData.anomalyPos_.x; i ++)
-            for (int j = inputData.anomalyPos_.y; j < inputData.anomalySize_.y + inputData.anomalyPos_.y; j ++)
-                for (int k = inputData.anomalyPos_.z; k < inputData.anomalySize_.z + inputData.anomalyPos_.z; k ++)
+        for (double i = inputData.anomalyPos_.x; i < inputData.anomalySize_.x + inputData.anomalyPos_.x + 0.001; i ++)
+            for (double j = inputData.anomalyPos_.y; j < inputData.anomalySize_.y + inputData.anomalyPos_.y + 0.001; j ++)
+                for (double k = inputData.anomalyPos_.z; k < inputData.anomalySize_.z + inputData.anomalyPos_.z + 0.001; k ++)
                 {
-                    result += BornForPoint ({i*1.0, j*1.0, k*1.0}, *(recv_array + n));
+                    Point3D_t p = {i*1.0, j*1.0, k*1.0};
+                    printf ("%g %g %g\n",
+                            ToPhysical (p).x,
+                            ToPhysical (p).y,
+                            ToPhysical (p).z);
+                    result += BornForPoint (p, *(recv_array + n));
                 }
         
         *(td.write + n) = {ToPhysical (*(recv_array + n)).x, result};

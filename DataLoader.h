@@ -12,7 +12,9 @@ struct Point3D_t
     double Len ();
 };
 
+Point3D_t ToPhysicalCenter (Point3D_t p);
 Point3D_t ToPhysical (Point3D_t p);
+
 Point3D_t ToDiscrete (Point3D_t p);
 
 struct InputData_t

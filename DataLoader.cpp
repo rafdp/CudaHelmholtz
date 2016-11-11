@@ -18,6 +18,7 @@ void InputData_t::LoadData ()
     c_ = params[1];
     alpha_ = params[2];
     fread (&anomalyPos_, sizeof (Point3D_t), 1, load);
+    printf ("Anomaly pos %g %g %g", anomalyPos_.x, anomalyPos_.y, anomalyPos_.z);
     fread (&anomalySize_, sizeof (Point3D_t), 1, load);
     fread (&block_size_, sizeof (Point3D_t), 1, load);
     printf ("block_size_ %g %g %g\n", block_size_.x, block_size_.y, block_size_.z);
@@ -27,7 +28,7 @@ void InputData_t::LoadData ()
     fread (recievers_.data (), sizeof (Point3D_t), N, load);
 }
 
-Point3D_t ToPhysical (Point3D_t p)
+Point3D_t ToPhysicalCenter (Point3D_t p)
 {
     return Point3D_t {
         p.x*INPUT_DATA_PTR->block_size_.x + INPUT_DATA_PTR->block_size_.x / 2,
@@ -36,6 +37,14 @@ Point3D_t ToPhysical (Point3D_t p)
     
 }
 
+Point3D_t ToPhysical (Point3D_t p)
+{
+    return Point3D_t {
+        p.x*INPUT_DATA_PTR->block_size_.x,
+        p.y*INPUT_DATA_PTR->block_size_.y,
+        p.z*INPUT_DATA_PTR->block_size_.z};
+    
+}
 
 Point3D_t ToDiscrete (Point3D_t p)
 {
