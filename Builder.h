@@ -5,6 +5,6 @@
 #include "SharedDeclarations.h"
 #include "DataLoader.h"
 extern InputData_t* INPUT_DATA_PTR;
-#include "BornCalc.h"
+//#include "BornCalc.h"
 #include "CudaCalc.h"
 #endif

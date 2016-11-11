@@ -1,11 +1,13 @@
 
 //=================================================================
 
+// This file is not needed anymore, about to delete
+
 #include "Builder.h"
 
 //-----------------------------------------------------------------
 
-complex<double> BornForPoint  (Point3D_t rEmitter, Point3D_t rReceiver);
+complex<doubl e> BornForPoint  (Point3D_t rEmitter, Point3D_t rReceiver);
 
 complex<double> GreenFunction (Point3D_t rEmitter, Point3D_t rReceiver);
 
@@ -22,7 +24,7 @@ complex<double> BornForPoint (Point3D_t rEmitter, Point3D_t rReceiver)
     rEmitter = ToPhysicalCenter (rEmitter);
     rReceiver = ToPhysical (rReceiver);
     
-    static const double K = INPUT_DATA_PTR->block_size_.x * INPUT_DATA_PTR->block_size_.y * INPUT_DATA_PTR->block_size_.z * INPUT_DATA_PTR->w_ * INPUT_DATA_PTR->w_;
+    static const double K = INPUT_DATA_PTR->discreteBlockSize_[0] * INPUT_DATA_PTR->discreteBlockSize_[1] * INPUT_DATA_PTR->discreteBlockSize_[2] * INPUT_DATA_PTR->f_*2*PI_ * INPUT_DATA_PTR->f_*2*PI_;
     
     
     return K * PressureI_ (rEmitter) * d_Slowness (rEmitter) * GreenFunction (rEmitter,rReceiver);
@@ -30,7 +32,7 @@ complex<double> BornForPoint (Point3D_t rEmitter, Point3D_t rReceiver)
 
 complex<double> GreenFunction (Point3D_t rEmitter, Point3D_t rReceiver)
 {
-    double k = INPUT_DATA_PTR->w_ / SoundSpeed (rEmitter);
+    double k = INPUT_DATA_PTR->f_*2*PI_ / INPUT_DATA_PTR->c_;
     Point3D_t dr = {rReceiver.x - rEmitter.x, rReceiver.y - rEmitter.y, rReceiver.z - rEmitter.z};
     double len = dr.Len ();
     return exp (I_ * len * k) / (4 * PI_ * len);
@@ -53,7 +55,7 @@ double SoundSpeed (Point3D_t r)
         r.y <= INPUT_DATA_PTR->anomalyPos_.y + INPUT_DATA_PTR->anomalySize_.y &&
         r.x >= INPUT_DATA_PTR->anomalyPos_.z &&
         r.z <= INPUT_DATA_PTR->anomalyPos_.z + INPUT_DATA_PTR->anomalySize_.z)
-        return INPUT_DATA_PTR->c_ * (1.0+INPUT_DATA_PTR->alpha_);
+        return INPUT_DATA_PTR->c_ * (1.5);
     else
         return INPUT_DATA_PTR->c_;
 }

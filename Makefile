@@ -1,3 +1,11 @@
+
+# to compile and run: make r
+# to just compile: make
+# to clean: make c
+# to compile, run and clean: make rc
+# to compile, run, plot and clean: make rcp
+
+
 .DEFAULT_GOAL := main
 
 CC = g++ 
@@ -5,9 +13,9 @@ CU = nvcc
 CFLAGS = -std=c++11 -Wall
 
 
-main: DataLoader.o BornCalc.o main.o 
-#CudaCalcCaller.o 
-	$(CC) -o main DataLoader.o BornCalc.o main.o
+main: DataLoader.o main.o 
+#CudaCalcCaller.o BornCalc.o 
+	$(CC) -o main DataLoader.o main.o -lpthread
 # CudaCalcCaller.o 
 
 DataLoader.o: DataLoader.cpp Builder.h
@@ -54,11 +62,5 @@ rcp: main
 	@echo
 	gnuplot plot.p
 	make c
-
-# to compile and run: make r
-# to just compile: make
-# to clean: make c
-# to compile, run and clean: make rc
-# to compile, run, plot and clean: make rcp
 
 	
