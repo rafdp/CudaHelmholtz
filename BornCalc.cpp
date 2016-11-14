@@ -7,7 +7,7 @@
 
 //-----------------------------------------------------------------
 
-complex<doubl e> BornForPoint  (Point3D_t rEmitter, Point3D_t rReceiver);
+complex<double> BornForPoint  (Point3D_t rEmitter, Point3D_t rReceiver);
 
 complex<double> GreenFunction (Point3D_t rEmitter, Point3D_t rReceiver);
 
@@ -23,10 +23,10 @@ complex<double> BornForPoint (Point3D_t rEmitter, Point3D_t rReceiver)
 {
     rEmitter = ToPhysicalCenter (rEmitter);
     rReceiver = ToPhysical (rReceiver);
-    
+
     static const double K = INPUT_DATA_PTR->discreteBlockSize_[0] * INPUT_DATA_PTR->discreteBlockSize_[1] * INPUT_DATA_PTR->discreteBlockSize_[2] * INPUT_DATA_PTR->f_*2*PI_ * INPUT_DATA_PTR->f_*2*PI_;
-    
-    
+
+
     return K * PressureI_ (rEmitter) * d_Slowness (rEmitter) * GreenFunction (rEmitter,rReceiver);
 }
 
@@ -47,8 +47,8 @@ complex<double> PressureI_ (Point3D_t rReceiver)
 double SoundSpeed (Point3D_t r)
 {
     r = ToDiscrete (r);
-    
-    
+
+
     if (r.x >= INPUT_DATA_PTR->anomalyPos_.x &&
         r.x <= INPUT_DATA_PTR->anomalyPos_.x + INPUT_DATA_PTR->anomalySize_.x &&
         r.y >= INPUT_DATA_PTR->anomalyPos_.y &&

@@ -10,13 +10,12 @@
 
 CC = g++ 
 CU = nvcc
+CUFLAGS = -Wno-deprecated-gpu-targets to suppress warning
 CFLAGS = -std=c++11 -Wall
 
 
-main: DataLoader.o main.o 
-#CudaCalcCaller.o BornCalc.o 
-	$(CC) -o main DataLoader.o main.o -lpthread
-# CudaCalcCaller.o 
+main: DataLoader.o main.o CudaCalcCaller.o BornCalc.o 
+	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o  DataLoader.o main.o -lpthread 
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
@@ -25,7 +24,7 @@ BornCalc.o: BornCalc.cpp BornCalc.h
 	$(CC) $(CFLAGS) -c BornCalc.cpp	
 
 CudaCalcCaller.o: CudaCalcCaller.cu CudaCalc.h
-	$(CU) -std=c++11 -c CudaCalcCaller.cu
+	$(CU) $(CUFLAGS) -std=c++11 -c CudaCalcCaller.cu
 
 main.o: main.cpp Builder.h
 	$(CC) $(CFLAGS) -c main.cpp
