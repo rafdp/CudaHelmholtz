@@ -8,31 +8,49 @@
 #include <thrust/replace.h>
 #include <thrust/complex.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/plus.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/functional.h>
 
-
-const dim3 blockSize = (30, 30, 30);
-const dim3 gridSize  = (30, 30, 30);
-
-__global__ d_I_  = I_;
+__global__ d_I_  = I_ ;
 __global__ d_PI_ = PI_;
 
-struct advDS
-{
-	int idx;
-	complex <double> val;
-};
 
-InputData_t* INPUT_DATA_PTR = nullptr;
+InputData_t* INPUT_DATA_PTR   = nullptr;
+InputData_t* D_INPUT_DATA_PTR = nullptr;
 
-__global__ complex <double> d_PressureI     (Point3D_t r);
-__global__ complex <double> d_GreenFunction (Point3D_t r, Point3D_t rj);
+thrust::device_vector <complex <double>> * Ui;
+
 
 struct BornCalculation 
 {
 	__host__ __device__
-		 operator()(const advDS x) const 
-		{ return x.val * d_PressureI (d_indexToPoint (x.idx) * d_GreenFunction (rj, d_indexToPoint (x.idx) * (INPUT_DATA_PTR -> w_) * (INPUT_DATA_PTR -> w_); }
+	double operator()(const complex<double>& S) const
+	{
+		const Point3D_t rj;
+		BornCalculation(Point3D_t _rj) : rj(_rj) {}
+
+		InputData_t* d_inputData = D_INPUT_DATA_PTR;
+
+		Point3D_t r = { (int)S %  (d_inputData -> discretizationSize).x                                        - rj.x,
+					   ((int)(S / (d_inputData -> discretizationSize).x)) % (d_inputData -> discretizationSize).y   - rj.y,
+						(int)S / ((d_inputData-> discretizationSize) .x * (d_inputData -> discretizationSize).y)    - rz.z};
+		return (*Ui) [S] * exp(d_inputData -> f_ * 2 * d_PI_ / d_inputData -> c_ * d_I_ * dr.Len()) / (4 * PI_ * dr.Len());
+	}
+};
+
+struct UiMultiply
+{
+	__host__ __device__
+	double operator()(const complex<float>& ds, const complex<double>& S) const 
+	{
+		InputData_t* d_inputData = D_INPUT_DATA_PTR;
+		Point3D_t r = {(int) S % (d_inputData -> discretizationSize).x,
+		              ((int) S / (d_inputData -> discretizationSize).x) % x % (d_inputData -> discretizationSize).y,
+		               (int) S / ((d_inputData -> discretizationSize).x * (d_inputData -> discretizationSize).y)};
+
+		return d_w_ * _d_w_ * ds * exp(d_inputData -> f_ * 2 * d_PI_ / d_inputData -> c_ * d_I_ * r.Len()) / (4 * PI_ * r.Len());
+	}
+
 };
 
 
@@ -41,39 +59,42 @@ int main()
 	InputData_t inputData = {};
 	inputData.LoadData();
 	INPUT_DATA_PTR = &inputData;
+	__constant__ InputData_t d_inputData = inputData;
+	D_INPUT_DATA_PTR = &d_inputData;
 	int recvNum = inputData.Nreceivers_;
+	const int matrixSize = inputData.discretizationSize.x * inputData.discretizationSize.y * inputData.discretizationSize.z;
 
-	const int matrixSize = inputData.anomalySize_.x * inputData.anomalySize_.y * inputData.anomalySize_.z;
-	
-	thrust::device_vector <advDS> AdvancedDS (matrixSize);
+	thrust::device_vector <complex <double>> dS (matrixSize);
+	dS = inputData -> ds2_;
 
-	thrust::sequence(AdvancedDS.begin().idx, AdvancedDS.end().idx);
-	for (int i = 0; i < matrixSize; i++) AdvancedDS.val [i] = inputData.ds2_ [i];
+	CudaMalloc((void**)Ui, matrixSize);
+	thrust::sequence(Ui.begin(), Ui.end());
 
-	thrust::device_vector d_outputData(recvNum);
-	thrust::fill(d_outputData.begin(), d_outputData.end(), 0);
+	thrust::transform(Ui.begin(), Ui.end(), Ui.begin(), Ui.begin(), UiMultiply());
 
-	__global__ InputData_t d_inputData = intputData;
+	thrust::device_vector <thrust::complex <double>> d_output(recvNum);
+	thrust::host_vector   <thrust::complex <double>> h_output(recvNum);
 
 	for (int i = 0; i < recvNum; i++)
 	{
-		__global__ Point3D_t rj = inputData.receivers_[i];
-		BornCalculation unary_op;
+		Point3D_t rj = inputData.receivers_[i];
+
+		thrust::device_vector <complex <double>> BornForReciever(matrixSize);
+		thrust::sequence(BornForReciever.begin(), BornForReciever().end());
+
 		double init = 0;
 		thrust::plus <double> binary_op;
-		d_outputData = thrust::transform_reduce(AdvancedDS.begin(), AdvancedDS.end(), unary_op, init, binary_op);
+
+		d_output [i] = thrust::transform_reduce(BornForReciever.begin(), BornForReciever.end(), BornCalculation (rj), init, binary_op);
+	}
+
+	h_output = d_output;
+
+	for (int i = 0; i < recvNum; i++)
+	{
+		printf("%f + %fi\n", h_ouutput.real(), h_output.imag());
 	}
 
 
-}
-
-__global__ complex <double> d_PressureI      (Point3D_t r)
-{
-	return  exp (d_inputData.f_ * 2 * d_PI_ / d_inputData.c_ * d_I_ * r .Len()) / (4 * PI_ * r .Len());
-}
-
-__global__ complex <double> d_GreenFunction (Point3D_t r, Point3D_t rj)
-{
-	return  exp (d_inputData.f_ * 2 * d_PI_ / d_inputData.c_ * d_I_ * rj.Len()) / (4 * PI_ * rj.Len());
 }
 
