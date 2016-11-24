@@ -16,15 +16,22 @@ const double         PI_ = 3.14159      ;
 //-----------------------------------------------------------------
 
 
-complex<double> BornForPoint  (Point3D_t rEmitter, Point3D_t rReceiver);
+complex<double> BornForPoint  (Point3DDevice_t
+ rEmitter, Point3DDevice_t
+ rReceiver);
 
-complex<double> GreenFunction (Point3D_t rEmitter, Point3D_t rReceiver);
+complex<double> GreenFunction (Point3DDevice_t
+ rEmitter, Point3DDevice_t
+ rReceiver);
 
-complex<double> PressureI_    (Point3D_t rReceiver);
+complex<double> PressureI_    (Point3DDevice_t
+ rReceiver);
 
-double          SoundSpeed    (Point3D_t rEmitter);
+double          SoundSpeed    (Point3DDevice_t
+ rEmitter);
 
-double          d_Slowness    (Point3D_t r);
+double          d_Slowness    (Point3DDevice_t
+ r);
 
 
 //=================================================================
