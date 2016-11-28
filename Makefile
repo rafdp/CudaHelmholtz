@@ -16,7 +16,7 @@ CFLAGS = -std=c++11 -Wall
 
 main: DataLoader.o main.o CudaCalcCaller.o CudaCalc.o
 #BornCalc.o
-	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o CudaCalc.o DataLoader.o main.o -lpthread -lcuda -lcudart
+	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o CudaCalc.o DataLoader.o main.o -lpthread -lcuda -lcudart -lcublas
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp

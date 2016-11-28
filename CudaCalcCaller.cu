@@ -11,6 +11,7 @@
 #include <thrust/memory.h>
 #include <thrust/complex.h>
 #include <thrust/device_new.h>
+#include <thrust/device_delete.h>
 #include <thrust/functional.h>
 #include "cublas_v2.h"
 
@@ -54,13 +55,13 @@ __device__ InputDataOnDevice * inputDataPtr;
 struct ModifyKMatrix
 {
 __device__
-    thrust::complex<float> operator() (Point3DDevice_t<float>& pos, thrust::complex<float>& k)
+    thrust::complex<float> operator() (thrust::complex<float>& k, Point3DDevice_t<float>& pos)
     {
         Point3DDevice_t<float> dr = {inputDataPtr->sourcePos_.x - pos.x,
                                      inputDataPtr->sourcePos_.y - pos.y,
                                      inputDataPtr->sourcePos_.z - pos.z};
         float len = dr.len ();
-        return k*inputDataPtr->w2h3_ * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
+        return inputDataPtr->w2h3_ * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len) * k;
     }
 };
 
@@ -114,6 +115,7 @@ struct IndexFromSequence
     __device__
     Point3DDevice_t<float> operator() (int idx) const
     {
+
         Point3DDevice_t<float> point = { 1.0f * (idx % inputDataPtr->size2_),
                                          1.0f * ((idx / inputDataPtr->size1_) % inputDataPtr->discretizationSize_.y),
                                          1.0f * (idx / inputDataPtr->size2_)};
@@ -134,13 +136,16 @@ struct IndexFromSequence
 extern "C"
 void ExternalKernelCaller (InputData_t* inputDataPtr_)
 {
+
 	InputData_t& inputData = *inputDataPtr_;
 
-	cudaMalloc ((void**) &inputDataPtr, sizeof (InputDataOnDevice));
+	InputDataOnDevice* deviceInputData = nullptr;
 
-	InputDataOnDevice* hostInputData = nullptr;
+	printf ("ERROR: %s\n", cudaGetErrorString(cudaMalloc ((void**) &deviceInputData, sizeof (InputDataOnDevice))));
 
-	cudaMemcpy (&hostInputData, &inputDataPtr, sizeof (InputDataOnDevice*), cudaMemcpyDeviceToHost);
+    printf ("ERROR: %s\n", cudaGetErrorString(cudaMemcpyToSymbol(inputDataPtr,
+                                                                 &deviceInputData,
+                                                                 sizeof(InputDataOnDevice*))));
 
     int size3 = inputData.discretizationSize_[0] *
                 inputData.discretizationSize_[1] *
@@ -172,47 +177,74 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
 
     #undef PointConversion
 
-    cudaMemcpy (hostInputData, &hostDataCopy, sizeof (InputDataOnDevice), cudaMemcpyHostToDevice);
+    cudaMemcpy (deviceInputData, &hostDataCopy, sizeof (InputDataOnDevice), cudaMemcpyHostToDevice);
 
     printf ("About to call kernel\n");
-    DevicePrintData<<<1, 1>>> (hostInputData);
+    DevicePrintData<<<1, 1>>> (deviceInputData);
     cudaDeviceSynchronize ();
     printf ("Kernel returned\n");
 
-    /*cublasHandle_t handle = 0;
+    cublasHandle_t handle = 0;
     cublasCreate(&handle);
 
-    thrust::host_vector<float> hostDs2Matrix (size3);
+    thrust::host_vector<thrust::complex<float> > hostDs2Matrix (size3);
 
-    for (int x = 0; x < inputData->discretizationSize_[0]; x++)
+    for (int x = 0; x < inputData.discretizationSize_[0]; x++)
     {
-        for (int y = 0; y < inputData->discretizationSize_[1]; y++)
+        for (int y = 0; y < inputData.discretizationSize_[1]; y++)
         {
-            for (int z = 0; z < inputData->discretizationSize_[2]; z++)
+            for (int z = 0; z < inputData.discretizationSize_[2]; z++)
             {
-                int currentIndex = (x + y*inputData->discretizationSize_[0] + z*inputData->discretizationSize_[0]*inputData->discretizationSize_[1]);
-                hostDs2Matrix[currentIndex] = thrust::complex<float> (1.0, 1.0) * inputData.ds2[currentIndex];
+                int currentIndex = (x + y*inputData.discretizationSize_[0] + z*inputData.discretizationSize_[0]*inputData.discretizationSize_[1]);
+                hostDs2Matrix[currentIndex] = thrust::complex<float> (float (inputData.ds2_[currentIndex]), 0.0);
             }
         }
     }
 
     thrust::device_vector<thrust::complex<float> > deviceKMatrix (hostDs2Matrix);
 
-    deviceKMatrixPtr = thrust::raw_pointer_cast(deviceKMatrix.data ());
+    printf ("%d\n", __LINE__);
+
+    void * tempPtr = deviceKMatrix.data ().get ();
+    printf ("%d\n", __LINE__);
+
+    cudaMemcpyToSymbol(deviceKMatrixPtr,
+                       &tempPtr,
+                       sizeof(void*));
+    printf ("%d\n", __LINE__);
 
     thrust::device_vector<Point3DDevice_t<float> > indexes (size3);
+    printf ("%d\n", __LINE__);
 
-    deviceIndexesPtr = thrust::raw_pointer_cast(indexes.data ());
+    tempPtr = indexes.data ().get ();
+    printf ("%d\n", __LINE__);
 
-    thrust::tabulate (indexes.begin(), indexes.end(), IndexFromSequence ());
+    cudaMemcpyToSymbol(deviceIndexesPtr,
+                       &tempPtr,
+                       sizeof(void*));
+    printf ("%d\n", __LINE__);
 
-    thrust::transform (indexes.begin (), indexes.end (), deviceKMatrix.begin (), deviceKMatrix.begin (), ModifyKMatrix ());
+    IndexFromSequence ifs;
+
+    thrust::tabulate (indexes.begin(), indexes.end(), ifs);
+    printf ("%d\n", __LINE__);
+
+    thrust::transform (deviceKMatrix.begin (), deviceKMatrix.end (), indexes.begin (), deviceKMatrix.begin (), ModifyKMatrix ());
+    printf ("%d\n", __LINE__);
 
     thrust::device_vector<thrust::complex<float> > deviceAMatrix (size3*size3);
+    printf ("%d\n", __LINE__);
 
-    thrust::tabulate (deviceAMatrix.begin (), deviceAMatrix.end (), SetAMatrix ());*/
+    thrust::tabulate (deviceAMatrix.begin (), deviceAMatrix.end (), SetAMatrix ());
 
+    printf ("%d\n", __LINE__);
 
+    thrust::complex <float> b = deviceKMatrix[17];
+
+    printf ("b = %g %g\n", b.real(), b.imag ());
+
+    cudaFree (deviceInputData);
+    printf ("%d\n", __LINE__);
 
 
 }

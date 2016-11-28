@@ -15,9 +15,9 @@ const double ANOMALY_SIZE_WORLD_X = 300,
              ANOMALY_SIZE_WORLD_Y = 300,
              ANOMALY_SIZE_WORLD_Z = 300;
 
-const double DISCRETIZATION_NX = 100,
-             DISCRETIZATION_NY = 100,
-             DISCRETIZATION_NZ = 100;
+const double DISCRETIZATION_NX = 20,
+             DISCRETIZATION_NY = 20,
+             DISCRETIZATION_NZ = 20;
 
 const double RECEIVER_X_BEGIN_WORLD = 500,
              RECEIVER_X_END_WORLD   = 1500,
@@ -34,7 +34,7 @@ const double ALPHA = 0.5;
 File format: binary
 double3             source              x, y, z     in physical space
 double              frequency                       in Hz
-double              c                               
+double              c
 double3             anomalyBegin        x, y, z     in physical space
 double3             anomalySize         x, y, z     in physical space
 int3                discretizationSize  x, y, z
@@ -47,61 +47,61 @@ double3[Nreceivers] receiverCoords      x, y, z     in physical space
 int main ()
 {
     FILE* inputData = fopen (INPUT_FILE, "wb");
-    
-    double coords[3] = {SOURCE_POS_WORLD_X, 
-                        SOURCE_POS_WORLD_Y, 
+
+    double coords[3] = {SOURCE_POS_WORLD_X,
+                        SOURCE_POS_WORLD_Y,
                         SOURCE_POS_WORLD_Z};
     fwrite (coords, sizeof (double), 3, inputData);
-    printf ("coords %g %g %g\n", 
-            coords[0], 
-            coords[1], 
+    printf ("coords %g %g %g\n",
+            coords[0],
+            coords[1],
             coords[2]);
-    
+
     double data[2] = {FREQUENCY, SOUND_SPEED};
     fwrite (data, sizeof (double), 2, inputData);
-    printf ("data %g %g\n", 
-            data[0], 
+    printf ("data %g %g\n",
+            data[0],
             data[1]);
 
-    double anomalyData[3] = {ANOMALY_POS_WORLD_X, 
-                             ANOMALY_POS_WORLD_Y, 
+    double anomalyData[3] = {ANOMALY_POS_WORLD_X,
+                             ANOMALY_POS_WORLD_Y,
                              ANOMALY_POS_WORLD_Z};
     fwrite (anomalyData, sizeof (double), 3, inputData);
-    printf ("anomalyData %g %g %g\n", 
-            anomalyData[0], 
-            anomalyData[1], 
+    printf ("anomalyData %g %g %g\n",
+            anomalyData[0],
+            anomalyData[1],
             anomalyData[2]);
-    
-    double anomalySize[3] = {ANOMALY_SIZE_WORLD_X, 
-                             ANOMALY_SIZE_WORLD_Y, 
+
+    double anomalySize[3] = {ANOMALY_SIZE_WORLD_X,
+                             ANOMALY_SIZE_WORLD_Y,
                              ANOMALY_SIZE_WORLD_Z};
     fwrite (anomalySize, sizeof (double), 3, inputData);
-    printf ("anomalySize %g %g %g\n", 
-            anomalySize[0], 
-            anomalySize[1], 
+    printf ("anomalySize %g %g %g\n",
+            anomalySize[0],
+            anomalySize[1],
             anomalySize[2]);
 
     int discretizationRatio[3] = {DISCRETIZATION_NX,
                                   DISCRETIZATION_NY,
                                   DISCRETIZATION_NZ};
-    
+
     fwrite (&discretizationRatio, sizeof (int), 3, inputData);
-    printf ("discretizationRatio %d %d %d\n", 
-            discretizationRatio[0], 
-            discretizationRatio[1], 
+    printf ("discretizationRatio %d %d %d\n",
+            discretizationRatio[0],
+            discretizationRatio[1],
             discretizationRatio[2]);
-    
+
     int discrete_size[3] = {ANOMALY_SIZE_WORLD_X/DISCRETIZATION_NX,
                             ANOMALY_SIZE_WORLD_Y/DISCRETIZATION_NY,
                             ANOMALY_SIZE_WORLD_Z/DISCRETIZATION_NZ};
 
-    printf ("discrete_size %d %d %d\n", 
-            discrete_size[0], 
-            discrete_size[1], 
+    printf ("discrete_size %d %d %d\n",
+            discrete_size[0],
+            discrete_size[1],
             discrete_size[2]);
 
     double* ds2 = new double [discretizationRatio[0]*discretizationRatio[1]*discretizationRatio[2]];
-    
+
     double deltaS2 = 1.0/(SOUND_SPEED*SOUND_SPEED)*
                     (1.0/((1+ALPHA)*(1+ALPHA)) - 1.0);
     for (int x = 0; x < discretizationRatio[0]; x++)
@@ -110,8 +110,8 @@ int main ()
         {
             for (int z = 0; z < discretizationRatio[2]; z++)
             {
-                ds2[x + 
-                    y*discretizationRatio[1] + 
+                ds2[x +
+                    y*discretizationRatio[1] +
                     z*discretizationRatio[1]*discretizationRatio[2]] = deltaS2;
             }
         }
@@ -123,11 +123,11 @@ int main ()
 
 
     int Nreceivers = N_RECEIVERS;
-    
+
     fwrite (&Nreceivers, sizeof (int), 1, inputData);
-    printf ("Nreceivers %d\n", 
+    printf ("Nreceivers %d\n",
             Nreceivers);
-    
+
     double shift = (RECEIVER_X_END_WORLD - RECEIVER_X_BEGIN_WORLD)/(Nreceivers*1.0);
 
     for (int i = 0; i < Nreceivers; i++)
@@ -138,11 +138,11 @@ int main ()
         fwrite (coords_, sizeof (double), 3, inputData);
 
     }
-    
+
     fclose (inputData);
 
     delete [] ds2;
 
     return 0;
-    
+
 }
