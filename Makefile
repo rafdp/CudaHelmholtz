@@ -8,28 +8,32 @@
 
 .DEFAULT_GOAL := main
 
-CC = g++ 
+CC = g++
 CU = nvcc
-CUFLAGS = -Wno-deprecated-gpu-targets to suppress warning
+CUFLAGS = -Wno-deprecated-gpu-targets # to suppress warning
 CFLAGS = -std=c++11 -Wall
 
 
-main: DataLoader.o main.o CudaCalcCaller.o BornCalc.o 
-	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o  DataLoader.o main.o -lpthread 
+main: DataLoader.o main.o CudaCalcCaller.o CudaCalc.o
+#BornCalc.o
+	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o CudaCalc.o DataLoader.o main.o -lpthread -lcuda -lcudart
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
 
 BornCalc.o: BornCalc.cpp BornCalc.h
-	$(CC) $(CFLAGS) -c BornCalc.cpp	
+	$(CC) $(CFLAGS) -c BornCalc.cpp
 
 CudaCalcCaller.o: CudaCalcCaller.cu CudaCalc.h
 	$(CU) $(CUFLAGS) -std=c++11 -c CudaCalcCaller.cu
 
+CudaCalc.o: CudaCalc.cu CudaCalc.h
+	$(CU) $(CUFLAGS) -std=c++11 -c CudaCalc.cu
+
 main.o: main.cpp Builder.h
 	$(CC) $(CFLAGS) -c main.cpp
 
-c: 
+c:
 	rm -rf main *.o InputDataExec input.data
 
 r: main
@@ -62,4 +66,4 @@ rcp: main
 	gnuplot plot.p
 	make c
 
-	
+

@@ -4,7 +4,6 @@
 
 #include "includes.h"
 #include "DataLoader.h"
-#include "BornCalc.h"
 
 //-----------------------------------------------------------------
 
@@ -15,6 +14,18 @@ const int GRID_SIZE_  = 50;
 
 extern "C"
 void ExternalKernelCaller (InputData_t* INPUT_DATA_PTR);
+
+template<typename T>
+struct Point3DDevice_t
+{
+    T x, y, z;
+#ifdef __CUDACC__
+    __host__ __device__
+#endif
+    float len ();
+};
+
+struct InputDataOnDevice;
 
 //=================================================================
 #endif
