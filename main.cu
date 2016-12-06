@@ -13,6 +13,8 @@
 
 __constant__ thrust::complex<float> d_I_;
 __constant__ float d_PI_;
+__device__ thrust::complex<float> * UiPtr;
+__device__ thrust::complex<float> * PointsPtr;
 
 template <typename T>
 struct Point3DDevice_t
@@ -60,14 +62,16 @@ struct BornCalculation  // rewrite inputdata use
 	BornCalculation(Point3D_t _rj) : rj(_rj) {}
 
     __host__ __device__
-	thrust::complex<float> operator()(const thrust::complex <float> Ui, const Point3DDevice_t <float> r) const
+	thrust::complex<float> operator()(const thrust::complex<float> idxi) const
 	{
-
+		const int idx = (int)idixi.real();
 		InputDataOnDevice* d_inputData = inputDataPtr;
+	
+		Point3DDevice_t r = *(PointsPtr + idx);
 
 		Point3DDevice_t <float> dr = {r.x - rj.x, r.y - rj.y, r.z - rj.z};
 						            
-		return Ui * thrust::exp(d_inputData -> uiCoeff_ * dr.len()) / (4 * d_PI_ * dr.len());
+		return (UiPtr + idx)  * thrust::exp(d_inputData -> uiCoeff_ * dr.len()) / (4 * d_PI_ * dr.len());
 	}
 };
 
@@ -232,7 +236,21 @@ int main()
 
 
 	thrust::device_vector <thrust::complex <float> > Ui (size3);
-	thrust::device_vector <Point3DDevice_t <float> > Points (size3); // remove ds or ui
+	 void * tempPtr = Ui.data ().get ();
+    cudaMemcpyToSymbol(UiPtr,
+                       &tempPtr,
+                       sizeof(void*));
+
+
+thrust::device_vector <thrust::complex <float> > Points (size3);
+	tempPtr = Points.data ().get ();
+    cudaMemcpyToSymbol(PointsPtr,
+                       &tempPtr,
+                       sizeof(void*));
+	
+	
+
+	//thrust::device_vector <Point3DDevice_t <float> > Points (size3); // remove ds or ui
 	
 	thrust::tabulate(Points.begin(), Points.end(), IndexFromSequence()); // filling Point with coordinates
 
@@ -246,15 +264,17 @@ int main()
 		Point3D_t rj = inputData.receivers_[i];
 
 		thrust::device_vector <thrust::complex<float>> BornForReciever(size3);
-		//thrust::sequence(BornForReciever.begin(), BornForReciever.end()); 
+		thrust::complex <float> init = 0 + 0 * I;
+		thrust::complex <float> step = 1 + 0 * I;
+		thrust::sequence(BornForReciever.begin(), BornForReciever.end(), init, step); 
 
 		float init = 0; //ui to global
 		thrust::plus <float> binary_op;
 
-		d_output [i] = thrust::transform_reduce(Points.begin(), Points.end(), BornCalculation (rj), init, binary_op); //born calc to global ui
+		d_output [i] = thrust::transform_reduce(BornForReciever.begin(), BornForReciever.end(), BornCalculation (rj), init, binary_op); //born calc to global ui
 	}
 
-	h_output = d_output;
+	cudaMemcpyToSymbol(d_output, h_output, recvNum * sizeof (float) * 2);
 
 	for (int i = 0; i < recvNum; i++)
 	{
