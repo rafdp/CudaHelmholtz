@@ -1,45 +1,11 @@
 
 //=================================================================
 
-#include <thrust/device_vector.h>
-#include <thrust/transform.h>
-#include <thrust/sequence.h>
-#include <thrust/copy.h>
-#include <thrust/fill.h>
-#include <thrust/replace.h>
-#include <thrust/transform_reduce.h>
-#include <thrust/memory.h>
-#include <thrust/complex.h>
-#include <thrust/device_new.h>
-#include <thrust/device_delete.h>
-#include <thrust/functional.h>
-#include <cublas_v2.h>
-#include <cusolverDn.h>
-
-
 #include "CudaCalc.h"
 
-struct InputDataOnDevice
-{
-    Point3DDevice_t<float> sourcePos_;
-    float w_; //DROP
-    thrust::complex<float> uiCoeff_;
-    Point3DDevice_t<float> anomalyPos_;
-    Point3DDevice_t<float> anomalySize_;
-    Point3DDevice_t<int>   discretizationSize_;
-    Point3DDevice_t<int>   discreteBlockSize_;
-    int                    size3_;
-    int                    size2_;
-    int                    size1_;
-    float                  w2h3_;
-};
 
-
-__global__ void BornForRecieversKernel (int * P_recv, InputData_t* INPUT_DATA_PTR);
-
-__global__ void DevicePrintData (InputDataOnDevice * inputDataPtr);
-
-__global__ void DevicePrint ();
+static const char * cublasGetErrorString (cublasStatus_t error);
+static const char * cusolverGetErrorString (cusolverStatus_t error);
 
 
 template <typename T>
@@ -49,8 +15,6 @@ float Point3DDevice_t<T>::len ()
     return sqrtf (x*x + y*y + z*z);
 }
 
-//__device__ thrust::complex<float> * deviceKMatrixPtr;
-//__device__ Point3DDevice_t<float> * deviceIndexesPtr;
 __device__ InputDataOnDevice * inputDataPtr;
 
 struct ModifyKMatrix
@@ -176,11 +140,43 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
 
 	InputDataOnDevice* deviceInputData = nullptr;
 
-	printf ("ERROR: %s\n", cudaGetErrorString(cudaMalloc ((void**) &deviceInputData, sizeof (InputDataOnDevice))));
+	cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
+    cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
+    cudaError_t cudaStat = cudaSuccess;
+    int* devInfo = nullptr;
+    int devInfoHost = 0;
 
-    printf ("ERROR: %s\n", cudaGetErrorString(cudaMemcpyToSymbol(inputDataPtr,
-                                                                 &deviceInputData,
-                                                                 sizeof(InputDataOnDevice*))));
+
+    #define CC(op) \
+    cudaStat = (op); \
+	if (cudaStat != cudaSuccess) \
+    { \
+        printf ("-----------------\n    Error occurred (cuda)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", __LINE__, #op, cudaGetErrorString(cudaStat)); \
+        return; \
+    }
+
+    #define CB(op) \
+    cublas_status = (op); \
+	if (cublas_status != CUBLAS_STATUS_SUCCESS) \
+    { \
+        printf ("-----------------\n    Error occurred (cublas)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", __LINE__, #op, cublasGetErrorString(cublas_status)); \
+        return; \
+    }
+
+    #define CS(op) \
+    cusolver_status = (op); \
+	if (cusolver_status != CUSOLVER_STATUS_SUCCESS) \
+    { \
+        CC(cudaMemcpy(&devInfoHost, devInfo, sizeof(int), cudaMemcpyDeviceToHost));\
+        printf ("-----------------\n    Error occurred (cusolver, devinfo %d)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", devInfoHost, __LINE__, #op, cusolverGetErrorString(cusolver_status)); \
+        return; \
+    }
+
+    #define LL printf ("_%d_\n", __LINE__);
+
+    CC(cudaMalloc ((void**) &deviceInputData, sizeof (InputDataOnDevice)));
+
+    CC(cudaMemcpyToSymbol(inputDataPtr, &deviceInputData, sizeof(InputDataOnDevice*)));
 
     int size3 = inputData.discretizationSize_[0] *
                 inputData.discretizationSize_[1] *
@@ -193,7 +189,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
      (type)(inputData.var.z)}
 
     InputDataOnDevice hostDataCopy = {PointConversion (sourcePos_, float),
-                                      (float) (2*3.141592f*inputData.f_),
                                       thrust::complex<float> (0, (float) (2*3.141592f*inputData.f_/inputData.c_)),
                                       PointConversion (anomalyPos_, float),
                                       PointConversion (anomalySize_, float),
@@ -212,12 +207,12 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
 
     #undef PointConversion
 
-    cudaMemcpy (deviceInputData, &hostDataCopy, sizeof (InputDataOnDevice), cudaMemcpyHostToDevice);
+    CC(cudaMemcpy (deviceInputData, &hostDataCopy, sizeof (InputDataOnDevice), cudaMemcpyHostToDevice));
 
-    printf ("About to call kernel\n");
+    /*printf ("About to call kernel\n");
     DevicePrintData<<<1, 1>>> (deviceInputData);
-    cudaDeviceSynchronize ();
-    printf ("Kernel returned\n");
+    CC(cudaDeviceSynchronize ());
+    printf ("Kernel returned\n");*/
 
     thrust::host_vector<thrust::complex<float> > hostDs2Matrix (size3);
 
@@ -235,49 +230,25 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
 
     thrust::device_vector<thrust::complex<float> > deviceKMatrix (hostDs2Matrix);
 
-    printf ("%d\n", __LINE__);
-
-    /*void * tempPtr = deviceKMatrix.data ().get ();
-    printf ("%d\n", __LINE__);
-
-    cudaMemcpyToSymbol(deviceKMatrixPtr,
-                       &tempPtr,
-                       sizeof(void*));
-    printf ("%d\n", __LINE__);*/
+    LL
 
     thrust::device_vector<Point3DDevice_t<float> > indexes (size3);
-    printf ("%d\n", __LINE__);
-
-    /*tempPtr = indexes.data ().get ();
-    printf ("%d\n", __LINE__);
-
-    cudaMemcpyToSymbol(deviceIndexesPtr,
-                       &tempPtr,
-                       sizeof(void*));
-    printf ("%d\n", __LINE__);*/
+    LL
 
     thrust::tabulate (indexes.begin(), indexes.end(), IndexFromSequence ());
-    printf ("%d\n", __LINE__);
+    LL
 
     thrust::transform (deviceKMatrix.begin (), deviceKMatrix.end (), indexes.begin (), deviceKMatrix.begin (), ModifyKMatrix ());
-    printf ("%d\n", __LINE__);
+    LL
 
     thrust::device_vector<thrust::complex<float> > deviceAMatrix (size3*size3);
-    printf ("%d\n", __LINE__);
+    LL
 
     SetAMatrix sMatrixSetter (deviceKMatrix.data ().get (), indexes.data ().get ());
 
     thrust::tabulate (deviceAMatrix.begin (), deviceAMatrix.end (), sMatrixSetter);
 
-    printf ("%d\n", __LINE__);
-
-    thrust::complex <float> b = deviceKMatrix[17];
-
-    printf ("b = %g %g\n", b.real(), b.imag ());
-
-    cudaFree (deviceInputData);
-    printf ("%d\n", __LINE__);
-
+    LL
 
     /// ////////////////////////////////////
     /// solution part (linear system, not fft)
@@ -287,28 +258,28 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
     /// 1. Creating handles
 
     cublasHandle_t cublasH = nullptr;
-    cublasCreate(&cublasH);
+    CB(cublasCreate(&cublasH));
 
     cusolverDnHandle_t cudenseH = nullptr;
-    cusolverDnCreate(&cudenseH);
-    printf ("%d\n", __LINE__);
+    CS(cusolverDnCreate(&cudenseH));
+    LL
 
-    /// 1. Setting up data
+    /// 2. Setting up data
 
-    thrust::device_vector<thrust::complex<float> > ones (size3, thrust::complex<float> (1.0f, 0.0f));
-    thrust::device_vector<thrust::complex<float> > reductedA (size3, 0.0f);
+    thrust::device_vector<thrust::complex<float> > ones (size3, thrust::complex<float> (-1.0f, -1.0f)); // is it -1 or -1 - i ?
+    thrust::device_vector<thrust::complex<float> > reductedA_solution (size3, 0.0f);
 
     thrust::complex<float> alpha (1.0f, 1.0f);
     thrust::complex<float> beta (0.0f, 0.0f);
 
-    /// reductedA = alpha*A*ones+beta*reductedA = A*ones
-    cublasCgemv (cublasH, CUBLAS_OP_N, size3, size3,
-                 reinterpret_cast <cuComplex*> (&alpha),
-                 reinterpret_cast <cuComplex*> (deviceAMatrix.data ().get ()),
-                 size3,
-                 reinterpret_cast <cuComplex*> (ones.data ().get ()), 1,
-                 reinterpret_cast <cuComplex*> (&beta),
-                 reinterpret_cast <cuComplex*> (reductedA.data ().get ()), 1);
+    /// reductedA_solution = alpha*A*ones+beta*reductedA_solution = A*ones
+    CB(cublasCgemv (cublasH, CUBLAS_OP_N, size3, size3,
+                    reinterpret_cast <cuComplex*> (&alpha),
+                    reinterpret_cast <cuComplex*> (deviceAMatrix.data ().get ()),
+                    size3,
+                    reinterpret_cast <cuComplex*> (ones.data ().get ()), 1,
+                    reinterpret_cast <cuComplex*> (&beta),
+                    reinterpret_cast <cuComplex*> (reductedA_solution.data ().get ()), 1));
 
 
 
@@ -321,10 +292,150 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
     ModifyAMatrix modificatorA (deviceAMatrix.data ().get (), indexes.data ().get ());
     thrust::tabulate (ones.begin(), ones.end(), modificatorA);
 
+    LL
 
-    printf ("%d\n", __LINE__);
+    /// 3. Querying workspace for cusolverDn
+
+    //thrust::device_vector<thrust::complex<float> > tau (size3);
+
+    int workspaceSize = 0;
+
+    CS(cusolverDnCgeqrf_bufferSize(cudenseH,
+                                   size3,
+                                   size3,
+                                   reinterpret_cast <cuComplex*> (deviceAMatrix.data ().get ()),
+                                   size3,
+                                   &workspaceSize));
+
+    thrust::device_vector<thrust::complex<float> > workspace (workspaceSize);
+
+    LL
+
+    /// 4. Computing QR decomposition
+
+    thrust::device_vector<thrust::complex<float> > tau (size3);
+
+    CC(cudaMalloc ((void**)&devInfo, sizeof(int)));
+
+    LL
+
+    CS(cusolverDnCgeqrf(cudenseH,
+                        size3,
+                        size3,
+                        reinterpret_cast <cuComplex*> (deviceAMatrix.data ().get ()),
+                        size3,
+                        reinterpret_cast <cuComplex*> (tau.data ().get ()),
+                        reinterpret_cast <cuComplex*> (workspace.data ().get ()),
+                        workspaceSize,
+                        devInfo));
+    CC(cudaDeviceSynchronize());
+
+    LL
+
+    /// 5. compute Q^H*B
+    CS(cusolverDnCunmqr(cudenseH,
+                        CUBLAS_SIDE_LEFT,
+                        CUBLAS_OP_C,
+                        size3,
+                        1,
+                        size3, //k 	host 	input 	number of elementary relfections
+                        reinterpret_cast <cuComplex*> (deviceAMatrix.data ().get ()),
+                        size3,
+                        reinterpret_cast <cuComplex*> (tau.data ().get ()),
+                        reinterpret_cast <cuComplex*> (reductedA_solution.data ().get ()),
+                        size3,
+                        reinterpret_cast <cuComplex*> (workspace.data ().get ()),
+                        workspaceSize,
+                        devInfo));
 
 
+
+
+    CC(cudaDeviceSynchronize());
+
+    LL
+
+    /// 6. solve Rx = Q^H*B
+    CB(cublasCtrsm(cublasH,
+                   CUBLAS_SIDE_LEFT,
+                   CUBLAS_FILL_MODE_UPPER,
+                   CUBLAS_OP_N,
+                   CUBLAS_DIAG_NON_UNIT,
+                   size3,
+                   1,
+                   reinterpret_cast <cuComplex*> (&alpha),
+                   reinterpret_cast <cuComplex*> (deviceAMatrix.data ().get ()),
+                   size3,
+                   reinterpret_cast <cuComplex*> (reductedA_solution.data ().get ()),
+                   size3));
+
+    CC(cudaDeviceSynchronize());
+
+    CC(cudaFree (deviceInputData));
+    CC(cudaFree (devInfo));
+    LL
+
+    #undef CC
+    #undef CB
+    #undef CS
+    #undef PointConversion
+
+}
+
+
+static const char * cublasGetErrorString (cublasStatus_t error)
+{
+    switch (error)
+    {
+        case CUBLAS_STATUS_SUCCESS:
+            return "CUBLAS_STATUS_SUCCESS";
+
+        case CUBLAS_STATUS_NOT_INITIALIZED:
+            return "CUBLAS_STATUS_NOT_INITIALIZED";
+
+        case CUBLAS_STATUS_ALLOC_FAILED:
+            return "CUBLAS_STATUS_ALLOC_FAILED";
+
+        case CUBLAS_STATUS_INVALID_VALUE:
+            return "CUBLAS_STATUS_INVALID_VALUE";
+
+        case CUBLAS_STATUS_ARCH_MISMATCH:
+            return "CUBLAS_STATUS_ARCH_MISMATCH";
+
+        case CUBLAS_STATUS_MAPPING_ERROR:
+            return "CUBLAS_STATUS_MAPPING_ERROR";
+
+        case CUBLAS_STATUS_EXECUTION_FAILED:
+            return "CUBLAS_STATUS_EXECUTION_FAILED";
+
+        case CUBLAS_STATUS_INTERNAL_ERROR:
+            return "CUBLAS_STATUS_INTERNAL_ERROR";
+    }
+
+    return "<unknown>";
+}
+
+static const char * cusolverGetErrorString (cusolverStatus_t error)
+{
+    switch (error)
+    {
+        case CUSOLVER_STATUS_SUCCESS:
+            return "The operation completed successfully";
+
+        case CUSOLVER_STATUS_NOT_INITIALIZED:
+            return "The library was not initialized";
+
+        case CUSOLVER_STATUS_INVALID_VALUE:
+            return "Invalid parameters were passed";
+
+        case CUSOLVER_STATUS_ARCH_MISMATCH:
+            return "The device only supports compute capability 2.0 and above";
+
+        case CUSOLVER_STATUS_INTERNAL_ERROR:
+            return "CUSOLVER_STATUS_INTERNAL_ERROR";
+    }
+
+    return "<unknown>";
 }
 
 
