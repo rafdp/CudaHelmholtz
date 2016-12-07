@@ -13,7 +13,8 @@
 #include <thrust/device_new.h>
 #include <thrust/device_delete.h>
 #include <thrust/functional.h>
-#include "cublas_v2.h"
+#include <cublas_v2.h>
+#include <cusolverDn.h>
 
 
 #include "CudaCalc.h"
@@ -48,8 +49,8 @@ float Point3DDevice_t<T>::len ()
     return sqrtf (x*x + y*y + z*z);
 }
 
-__device__ thrust::complex<float> * deviceKMatrixPtr;
-__device__ Point3DDevice_t<float> * deviceIndexesPtr;
+//__device__ thrust::complex<float> * deviceKMatrixPtr;
+//__device__ Point3DDevice_t<float> * deviceIndexesPtr;
 __device__ InputDataOnDevice * inputDataPtr;
 
 struct ModifyKMatrix
@@ -71,11 +72,21 @@ exp (Gcoeff * len) / (4 * PI_ * len)
 */
 struct SetAMatrix
 {
+    thrust::complex<float> * deviceKMatrixPtr;
+    Point3DDevice_t<float> * deviceIndexesPtr;
+
+    SetAMatrix (thrust::complex<float> * deviceKMatrixPtr_, Point3DDevice_t<float> * deviceIndexesPtr_) :
+        deviceKMatrixPtr (deviceKMatrixPtr_),
+        deviceIndexesPtr (deviceIndexesPtr_)
+    {}
+
 __device__
     thrust::complex<float> operator() (int idx)
     {
-        int idx1 = idx % inputDataPtr->size3_;
-        int idx2 = idx / inputDataPtr->size3_;
+        int idx1 = idx % inputDataPtr->size3_; // receiver
+        int idx2 = idx / inputDataPtr->size3_; // emitter
+        if (idx1 == idx2) return thrust::complex <float> (0.0f, 0.0f);
+
         Point3DDevice_t<float> pos1 = *(deviceIndexesPtr + idx1);
         Point3DDevice_t<float> pos2 = *(deviceIndexesPtr + idx2);
         Point3DDevice_t<float> dr = {pos1.x-pos2.x,
@@ -84,7 +95,7 @@ __device__
         float len = dr.len ();
 
 //--------------------------------------------------------------------+
-// using ui in point   idx2   , maybe will need to tune               |
+// using ui in point   idx1   , maybe will need to tune               |
 // if row-major order is used:                                        |
 //                                  00 10 20                          |
 //                                  01 11 21                          |
@@ -98,7 +109,7 @@ __device__
 //                                  09 19 29                          |
 // every column contains all the points for a single receiver         |
 // when converting to column-major:                                   |
-// row = receiver                                                     |
+// sequential receiver storage                                        |
 //                                  00 01 02 03 04 05 06 07 08 09     |
 //                                  10 11 12 13 14 15 16 17 18 19     |
 //                                  20 21 22 23 24 25 26 27 28 29 ... |
@@ -106,6 +117,31 @@ __device__
 
 
         return (*(deviceKMatrixPtr + idx2)) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
+    }
+};
+
+//Aii = - ui
+struct ModifyAMatrix
+{
+    thrust::complex<float> * deviceAMatrixPtr;
+    Point3DDevice_t<float> * deviceIndexesPtr;
+
+    ModifyAMatrix (thrust::complex<float> * deviceAMatrixPtr_, Point3DDevice_t<float> * deviceIndexesPtr_) :
+        deviceAMatrixPtr (deviceAMatrixPtr_),
+        deviceIndexesPtr (deviceIndexesPtr_)
+    {}
+
+__device__
+    thrust::complex<float> operator() (int idx)
+    {
+        Point3DDevice_t<float> pos = *(deviceIndexesPtr + idx);
+        Point3DDevice_t<float> dr = {inputDataPtr->sourcePos_.x - pos.x,
+                                     inputDataPtr->sourcePos_.y - pos.y,
+                                     inputDataPtr->sourcePos_.z - pos.z};
+        float len = dr.len ();
+        if (len < 0.0000001 && len > 0.0000001) return thrust::complex<float> (1.0f, 0.0f);
+        *(deviceAMatrixPtr + idx*(inputDataPtr->size3_+1)) = -thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
+        return thrust::complex<float> (1.0f, 0.0f);
     }
 };
 
@@ -131,7 +167,6 @@ struct IndexFromSequence
         return point;
     }
 };
-
 
 extern "C"
 void ExternalKernelCaller (InputData_t* inputDataPtr_)
@@ -184,9 +219,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
     cudaDeviceSynchronize ();
     printf ("Kernel returned\n");
 
-    cublasHandle_t handle = 0;
-    cublasCreate(&handle);
-
     thrust::host_vector<thrust::complex<float> > hostDs2Matrix (size3);
 
     for (int x = 0; x < inputData.discretizationSize_[0]; x++)
@@ -205,28 +237,26 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
 
     printf ("%d\n", __LINE__);
 
-    void * tempPtr = deviceKMatrix.data ().get ();
+    /*void * tempPtr = deviceKMatrix.data ().get ();
     printf ("%d\n", __LINE__);
 
     cudaMemcpyToSymbol(deviceKMatrixPtr,
                        &tempPtr,
                        sizeof(void*));
-    printf ("%d\n", __LINE__);
+    printf ("%d\n", __LINE__);*/
 
     thrust::device_vector<Point3DDevice_t<float> > indexes (size3);
     printf ("%d\n", __LINE__);
 
-    tempPtr = indexes.data ().get ();
+    /*tempPtr = indexes.data ().get ();
     printf ("%d\n", __LINE__);
 
     cudaMemcpyToSymbol(deviceIndexesPtr,
                        &tempPtr,
                        sizeof(void*));
-    printf ("%d\n", __LINE__);
+    printf ("%d\n", __LINE__);*/
 
-    IndexFromSequence ifs;
-
-    thrust::tabulate (indexes.begin(), indexes.end(), ifs);
+    thrust::tabulate (indexes.begin(), indexes.end(), IndexFromSequence ());
     printf ("%d\n", __LINE__);
 
     thrust::transform (deviceKMatrix.begin (), deviceKMatrix.end (), indexes.begin (), deviceKMatrix.begin (), ModifyKMatrix ());
@@ -235,7 +265,9 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
     thrust::device_vector<thrust::complex<float> > deviceAMatrix (size3*size3);
     printf ("%d\n", __LINE__);
 
-    thrust::tabulate (deviceAMatrix.begin (), deviceAMatrix.end (), SetAMatrix ());
+    SetAMatrix sMatrixSetter (deviceKMatrix.data ().get (), indexes.data ().get ());
+
+    thrust::tabulate (deviceAMatrix.begin (), deviceAMatrix.end (), sMatrixSetter);
 
     printf ("%d\n", __LINE__);
 
@@ -244,6 +276,52 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_)
     printf ("b = %g %g\n", b.real(), b.imag ());
 
     cudaFree (deviceInputData);
+    printf ("%d\n", __LINE__);
+
+
+    /// ////////////////////////////////////
+    /// solution part (linear system, not fft)
+    /// ////////////////////////////////////
+
+
+    /// 1. Creating handles
+
+    cublasHandle_t cublasH = nullptr;
+    cublasCreate(&cublasH);
+
+    cusolverDnHandle_t cudenseH = nullptr;
+    cusolverDnCreate(&cudenseH);
+    printf ("%d\n", __LINE__);
+
+    /// 1. Setting up data
+
+    thrust::device_vector<thrust::complex<float> > ones (size3, thrust::complex<float> (1.0f, 0.0f));
+    thrust::device_vector<thrust::complex<float> > reductedA (size3, 0.0f);
+
+    thrust::complex<float> alpha (1.0f, 1.0f);
+    thrust::complex<float> beta (0.0f, 0.0f);
+
+    /// reductedA = alpha*A*ones+beta*reductedA = A*ones
+    cublasCgemv (cublasH, CUBLAS_OP_N, size3, size3,
+                 reinterpret_cast <cuComplex*> (&alpha),
+                 reinterpret_cast <cuComplex*> (deviceAMatrix.data ().get ()),
+                 size3,
+                 reinterpret_cast <cuComplex*> (ones.data ().get ()), 1,
+                 reinterpret_cast <cuComplex*> (&beta),
+                 reinterpret_cast <cuComplex*> (reductedA.data ().get ()), 1);
+
+
+
+
+    /// need to subtract ui from every diagonal element of A
+    /// strategy1: run tabulate on something of size size3 and modify A alongside
+    /// strategy2: run for_each on a sequence, but need to create sequence of size size3
+
+    ///using strategy1
+    ModifyAMatrix modificatorA (deviceAMatrix.data ().get (), indexes.data ().get ());
+    thrust::tabulate (ones.begin(), ones.end(), modificatorA);
+
+
     printf ("%d\n", __LINE__);
 
 

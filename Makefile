@@ -16,7 +16,7 @@ CFLAGS = -std=c++11 -Wall
 
 main: DataLoader.o main.o CudaCalcCaller.o CudaCalc.o
 #BornCalc.o
-	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o CudaCalc.o DataLoader.o main.o -lpthread -lcuda -lcudart -lcublas
+	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o CudaCalc.o DataLoader.o main.o -lpthread -lcuda -lcudart -lcublas -lcusolver
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
@@ -46,24 +46,15 @@ r: main
 	@echo
 
 rc: main
-	g++ -o InputDataExec InputData.cpp
-	./InputDataExec
-	@echo
-	@echo "------Execution begins: " ||:
-	@./main ||:
-	@echo "------Execution ended" ||:
-	@echo
+	make r
 	make c
 
-rcp: main
-	g++ -o InputDataExec InputData.cpp
-	./InputDataExec
-	@echo
-	@echo "------Execution begins: " ||:
-	@./main ||:
-	@echo "------Execution ended" ||:
-	@echo
+p: main
 	gnuplot plot.p
+
+rcp: main
+	make r
+	make p
 	make c
 
 
