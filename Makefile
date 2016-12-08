@@ -6,7 +6,7 @@
 # to compile, run, plot and clean: make rcp
 
 
-.DEFAULT_GOAL := main
+.DEFAULT_GOAL := cuda
 
 CC = g++ 
 CU = nvcc
@@ -28,6 +28,10 @@ CudaCalcCaller.o: CudaCalcCaller.cu CudaCalc.h
 
 main.o: main.cpp Builder.h
 	$(CC) $(CFLAGS) -c main.cpp
+
+cuda:
+	nvcc -c -std=c++11 main.cu
+	$(CU) $(CUFLAGS) -o main main.o 
 
 c: 
 	rm -rf main *.o InputDataExec input.data
