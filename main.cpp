@@ -112,9 +112,9 @@ int main ()
 
     fclose (output1);
 
-    delete [] ui;*/
+    delete [] ui;
 
-    return 0;
+    return 0;*/
 }
 
 
@@ -139,7 +139,7 @@ void ThreadBorn_ (ThreadDataBorn_t td)
 
 
     for (int n = td.recv_numBegin;
-         n < td.recv_numEnd;
+         n < 1;//td.recv_numEnd;
          n ++)
     {
         complex <double> result = 0;
@@ -156,6 +156,7 @@ void ThreadBorn_ (ThreadDataBorn_t td)
                                    inputData.receivers_[n].y,
                                    DISCRETE_TO_PHYSICAL_CENTER (z, 2) -
                                    inputData.receivers_[n].z};
+
 
                     double len = p.Len ();
 

@@ -44,7 +44,7 @@ double3[Nreceivers] receiverCoords      x, y, z     in physical space
 */
 //---------------------------------------------------------------------
 
-#define print(x) ;
+#define print(x) printf x
 
 int main ()
 {
