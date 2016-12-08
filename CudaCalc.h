@@ -30,12 +30,35 @@ const int GRID_SIZE_  = 50;
 //-----------------------------------------------------------------
 
 extern "C"
-void ExternalKernelCaller (InputData_t* INPUT_DATA_PTR);
+void ExternalKernelCaller (InputData_t* INPUT_DATA_PTR, std::vector<std::complex<float> >* retData);
 
 template<typename T>
 struct Point3DDevice_t
 {
     T x, y, z;
+
+    template <typename T1>
+#ifdef __CUDACC__
+    __host__ __device__
+#endif
+    Point3DDevice_t (T1 tx, T1 ty, T1 tz);
+
+
+#ifdef __CUDACC__
+    __host__ __device__
+#endif
+    Point3DDevice_t (T* init);
+
+#ifdef __CUDACC__
+    __host__ __device__
+#endif
+    Point3DDevice_t (const Point3D_t& p);
+
+#ifdef __CUDACC__
+    __host__ __device__
+#endif
+    Point3DDevice_t ();
+
 #ifdef __CUDACC__
     __host__ __device__
 #endif

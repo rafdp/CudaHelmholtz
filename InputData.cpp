@@ -23,7 +23,7 @@ const double RECEIVER_X_BEGIN_WORLD = 500,
              RECEIVER_X_END_WORLD   = 1500,
              RECEIVER_Y_WORLD       = 0,
              RECEIVER_Z_WORLD       = 0,
-             N_RECEIVERS            = 500;
+             N_RECEIVERS            = 100;
 
 const double FREQUENCY = 5;
 const double SOUND_SPEED = 3000;

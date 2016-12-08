@@ -8,7 +8,7 @@ struct Point3D_t
     double x;
     double y;
     double z;
-    
+
     double Len ();
 };
 
@@ -43,7 +43,7 @@ struct InputData_t
     double*     ds2_;
     int         Nreceivers_;
     Point3D_t*  receivers_;
-    
+
     void LoadData ();
 
     ~InputData_t ();
