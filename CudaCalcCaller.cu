@@ -3,6 +3,9 @@
 
 #include "CudaCalc.h"
 
+typedef thrust::complex<float> complex_t;
+typedef Point3DDevice_t<float> point_t;
+
 
 static const char * cublasGetErrorString (cublasStatus_t error);
 static const char * cusolverGetErrorString (cusolverStatus_t error);
@@ -53,11 +56,11 @@ __device__ InputDataOnDevice * inputDataPtr;
 struct ModifyKMatrix
 {
 __device__
-    thrust::complex<float> operator() (thrust::complex<float>& k, Point3DDevice_t<float>& pos)
+    complex_t operator() (complex_t& k, point_t& pos)
     {
-        Point3DDevice_t<float> dr = {inputDataPtr->sourcePos_.x - pos.x,
-                                     inputDataPtr->sourcePos_.y - pos.y,
-                                     inputDataPtr->sourcePos_.z - pos.z};
+        point_t dr = {inputDataPtr->sourcePos_.x - pos.x,
+                      inputDataPtr->sourcePos_.y - pos.y,
+                      inputDataPtr->sourcePos_.z - pos.z};
         float len = dr.len ();
         return inputDataPtr->w2h3_ * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len) * k;
     }
@@ -69,24 +72,24 @@ exp (Gcoeff * len) / (4 * PI_ * len)
 */
 struct SetAMatrix
 {
-    thrust::complex<float> * deviceKMatrixPtr;
-    Point3DDevice_t<float> * deviceIndexesPtr;
+    complex_t * deviceKMatrixPtr;
+    point_t * deviceIndexesPtr;
 
-    SetAMatrix (thrust::complex<float> * deviceKMatrixPtr_, Point3DDevice_t<float> * deviceIndexesPtr_) :
+    SetAMatrix (complex_t * deviceKMatrixPtr_, point_t * deviceIndexesPtr_) :
         deviceKMatrixPtr (deviceKMatrixPtr_),
         deviceIndexesPtr (deviceIndexesPtr_)
     {}
 
 __device__
-    thrust::complex<float> operator() (int idx)
+    complex_t operator() (int idx)
     {
         int idx1 = idx % inputDataPtr->size3_; // receiver
         int idx2 = idx / inputDataPtr->size3_; // emitter
         if (idx1 == idx2) return thrust::complex <float> (0.0f, 0.0f);
 
-        Point3DDevice_t<float> pos1 = *(deviceIndexesPtr + idx1);
-        Point3DDevice_t<float> pos2 = *(deviceIndexesPtr + idx2);
-        Point3DDevice_t<float> dr = {pos1.x-pos2.x,
+        point_t pos1 = *(deviceIndexesPtr + idx1);
+        point_t pos2 = *(deviceIndexesPtr + idx2);
+        point_t dr = {pos1.x-pos2.x,
                                      pos1.y-pos2.y,
                                      pos1.z-pos2.z};
         float len = dr.len ();
@@ -120,10 +123,10 @@ __device__
 //Aii = - ui
 struct ModifyAMatrix
 {
-    thrust::complex<float> * deviceAMatrixPtr;
-    Point3DDevice_t<float> * deviceIndexesPtr;
+    complex_t * deviceAMatrixPtr;
+    point_t * deviceIndexesPtr;
 
-    ModifyAMatrix (thrust::complex<float> * deviceAMatrixPtr_, Point3DDevice_t<float> * deviceIndexesPtr_) :
+    ModifyAMatrix (complex_t * deviceAMatrixPtr_, point_t * deviceIndexesPtr_) :
         deviceAMatrixPtr (deviceAMatrixPtr_),
         deviceIndexesPtr (deviceIndexesPtr_)
     {}
@@ -131,8 +134,8 @@ struct ModifyAMatrix
 __device__
     void operator() (int idx)
     {
-        Point3DDevice_t<float> pos = *(deviceIndexesPtr + idx);
-        Point3DDevice_t<float> dr = {inputDataPtr->sourcePos_.x - pos.x,
+        point_t pos = *(deviceIndexesPtr + idx);
+        point_t dr = {inputDataPtr->sourcePos_.x - pos.x,
                                      inputDataPtr->sourcePos_.y - pos.y,
                                      inputDataPtr->sourcePos_.z - pos.z};
         float len = dr.len ();
@@ -145,16 +148,16 @@ __device__
 
 struct QLReduction
 {
-	const Point3DDevice_t <float> receiver;
-    thrust::complex<float> * deviceLambdaPtr;
-    Point3DDevice_t<float> * deviceIndexesPtr;
-    thrust::complex<float> * deviceKMatrixPtr;
+	const point_t receiver;
+    complex_t * deviceLambdaPtr;
+    point_t * deviceIndexesPtr;
+    complex_t * deviceKMatrixPtr;
 
     __host__
-	QLReduction (Point3DDevice_t <float> receiver_,
-                 thrust::complex<float> * deviceLambdaPtr_,
-                 Point3DDevice_t<float> * deviceIndexesPtr_,
-                 thrust::complex<float> * deviceKMatrixPtr_) :
+	QLReduction (point_t receiver_,
+                 complex_t * deviceLambdaPtr_,
+                 point_t * deviceIndexesPtr_,
+                 complex_t * deviceKMatrixPtr_) :
         receiver (receiver_),
         deviceLambdaPtr (deviceLambdaPtr_),
         deviceIndexesPtr (deviceIndexesPtr_),
@@ -162,11 +165,11 @@ struct QLReduction
     {}
 
     __device__
-	thrust::complex<float> operator()(int idx) const
+	complex_t operator()(int idx) const
 	{
-		Point3DDevice_t <float>& r = *(deviceIndexesPtr + idx);
+		point_t& r = *(deviceIndexesPtr + idx);
 
-		Point3DDevice_t <float> dr = {r.x - receiver.x +
+		point_t dr = {r.x - receiver.x +
                                       inputDataPtr->discreteBlockSize_.x / 2.0,
                                       r.y - receiver.y +
                                       inputDataPtr->discreteBlockSize_.y / 2.0,
@@ -175,7 +178,7 @@ struct QLReduction
 
 		float len = dr.len ();
 
-		return (*(deviceKMatrixPtr + idx)) * (thrust::complex<float> (1.0f, 0.0f) + *(deviceLambdaPtr + idx)) * //is it 1 or 1+i?
+		return (*(deviceKMatrixPtr + idx)) * (complex_t (1.0f, 0.0f) + *(deviceLambdaPtr + idx)) * //is it 1 or 1+i?
                 thrust::exp(inputDataPtr -> uiCoeff_ * len) / (4 * 3.141592f * len);
 	}
 };
@@ -183,7 +186,7 @@ struct QLReduction
 struct ComplexAddition
 {
     __host__ __device__
-	thrust::complex<float> operator()(const thrust::complex<float>& a, const thrust::complex<float>& b) const
+	complex_t operator()(const complex_t& a, const complex_t& b) const
 	{
 		return a + b;
 	}
@@ -192,10 +195,10 @@ struct ComplexAddition
 struct IndexFromSequence
 {
     __device__
-    Point3DDevice_t<float> operator() (int idx) const
+    point_t operator() (int idx) const
     {
 
-        Point3DDevice_t<float> point = { 1.0f * (idx % inputDataPtr->size1_),
+        point_t point = { 1.0f * (idx % inputDataPtr->size1_),
                                          1.0f * ((idx / inputDataPtr->size1_) % inputDataPtr->discretizationSize_.y),
                                          1.0f * (idx / inputDataPtr->size2_)};
         point = {(float) (point.x*inputDataPtr->discreteBlockSize_.x*1.0f +
@@ -262,7 +265,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
                 inputData.discretizationSize_[2];
 
     InputDataOnDevice hostDataCopy = {inputData.sourcePos_,
-                                      thrust::complex<float> (0.0f, (float) (2*3.141592f*inputData.f_/inputData.c_)),
+                                      complex_t (0.0f, (float) (2*3.141592f*inputData.f_/inputData.c_)),
                                       inputData.anomalyPos_,
                                       inputData.anomalySize_,
                                       inputData.discretizationSize_,
@@ -281,7 +284,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     CC(cudaDeviceSynchronize ());
     printf ("Kernel returned\n");
 
-    thrust::host_vector<thrust::complex<float> > hostDs2Matrix (size3);
+    thrust::host_vector<complex_t > hostDs2Matrix (size3);
 
     for (int x = 0; x < inputData.discretizationSize_[0]; x++)
     {
@@ -290,16 +293,16 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
             for (int z = 0; z < inputData.discretizationSize_[2]; z++)
             {
                 int currentIndex = (x + y*inputData.discretizationSize_[0] + z*inputData.discretizationSize_[0]*inputData.discretizationSize_[1]);
-                hostDs2Matrix[currentIndex] = thrust::complex<float> (float (inputData.ds2_[currentIndex]), 0.0);
+                hostDs2Matrix[currentIndex] = complex_t (float (inputData.ds2_[currentIndex]), 0.0);
             }
         }
     }
 
-    thrust::device_vector<thrust::complex<float> > deviceKMatrix (hostDs2Matrix);
+    thrust::device_vector<complex_t > deviceKMatrix (hostDs2Matrix);
 
     LL
 
-    thrust::device_vector<Point3DDevice_t<float> > indexes (size3);
+    thrust::device_vector<point_t > indexes (size3);
     LL
 
     thrust::tabulate (indexes.begin(), indexes.end(), IndexFromSequence ());
@@ -308,7 +311,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     thrust::transform (deviceKMatrix.begin (), deviceKMatrix.end (), indexes.begin (), deviceKMatrix.begin (), ModifyKMatrix ());
     LL
 
-    thrust::device_vector<thrust::complex<float> > deviceAMatrix (size3*size3);
+    thrust::device_vector<complex_t > deviceAMatrix (size3*size3);
     LL
 
     SetAMatrix sMatrixSetter (deviceKMatrix.data ().get (), indexes.data ().get ());
@@ -333,11 +336,11 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     /// 2. Setting up data
 
-    thrust::device_vector<thrust::complex<float> > ones (size3, thrust::complex<float> (-1.0f, -1.0f)); // is it -1 or -1 - i ?
-    thrust::device_vector<thrust::complex<float> > reductedA_solution (size3, 0.0f);
+    thrust::device_vector<complex_t> ones (size3, complex_t (-1.0f, 0.0f)); // is it -1 or -1 - i ?
+    thrust::device_vector<complex_t> reductedA_solution (size3, 0.0f);
 
-    thrust::complex<float> alpha (1.0f, 1.0f);
-    thrust::complex<float> beta (0.0f, 0.0f);
+    complex_t alpha (1.0f, 0.0f);
+    complex_t beta (0.0f, 0.0f);
 
     /// reductedA_solution = alpha*A*ones+beta*reductedA_solution = A*ones
     CB(cublasCgemv (cublasH, CUBLAS_OP_N, size3, size3,
@@ -375,13 +378,13 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
                                    size3,
                                    &workspaceSize));
 
-    thrust::device_vector<thrust::complex<float> > workspace (workspaceSize);
+    thrust::device_vector<complex_t> workspace (workspaceSize);
 
     LL
 
     /// 4. Computing QR decomposition
 
-    thrust::device_vector<thrust::complex<float> > tau (size3);
+    thrust::device_vector<complex_t> tau (size3);
 
     CC(cudaMalloc ((void**)&devInfo, sizeof(int)));
 
@@ -442,23 +445,10 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     /// 7. receiver convolution
 
-    /*ReceiverConvolution recConv (reductedA_solution.data().get(),
-                                 indexes.data ().get (),
-                                 deviceKMatrix.data ().get (),
-                                 &seq);
-
-    thrust::host_vector<Point3DDevice_t <float> > deviceReceivers (inputData.receivers_,
-                                                                   inputData.receivers_ + inputData.Nreceivers_);*/
-
-    /*thrust::transform (deviceReceivers.begin (),
-                       deviceReceivers.end (),
-                       retData->begin (),
-                       recConv);*/
-
     for (int i = 0; i < inputData.Nreceivers_; i++)
     {
         QLReduction qlRed (inputData.receivers_[i], reductedA_solution.data().get(), indexes.data ().get (), deviceKMatrix.data ().get ());
-        thrust::complex<float> init (0.0f, 0.0f);
+        complex_t init (0.0f, 0.0f);
         ComplexAddition complexSum;
         thrust::transform (seq.begin (), seq.end (), ones.begin(), qlRed);
         (*retData)[i] = thrust::reduce (ones.begin(), ones.end(), init, complexSum);

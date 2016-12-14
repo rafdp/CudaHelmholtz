@@ -10,7 +10,7 @@
 
 CC = g++
 CU = nvcc
-CUFLAGS = -Wno-deprecated-gpu-targets # to suppress warning
+CUFLAGS = -Wno-deprecated-gpu-targets
 CFLAGS = -std=c++11 -Wall
 
 

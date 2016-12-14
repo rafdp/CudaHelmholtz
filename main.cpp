@@ -1,6 +1,8 @@
 #include "Builder.h"
 #include <thread>
 
+#include <time.h>
+
 InputData_t* INPUT_DATA_PTR = nullptr;
 
 
@@ -36,8 +38,8 @@ int main ()
         fprintf (output1, "%g %e %e\r\n", inputData.receivers_[i].x, std::real (result[i]), std::imag (result[i]));
     }
 
-
-    /*INPUT_DATA_PTR = &inputData;
+    /*
+    INPUT_DATA_PTR = &inputData;
     int recv_num = inputData.Nreceivers_;
 
     const unsigned char Nthreads_ = std::thread::hardware_concurrency();
@@ -52,6 +54,11 @@ int main ()
                             [inputData.discretizationSize_[0] *
                              inputData.discretizationSize_[1] *
                              inputData.discretizationSize_[2]];
+
+    timespec spec0 = {};
+    timespec spec1 = {};
+    clock_gettime(CLOCK_MONOTONIC, &spec0);
+
 
 
     if (Nthreads != 1)
@@ -104,17 +111,22 @@ int main ()
         ThreadBorn_ (bData);
     }
 
+
+    clock_gettime(CLOCK_MONOTONIC, &spec1);
+
     for (int i = 0; i < recv_num; i ++)
     {
         fprintf (output1, "%g %e %e\r\n", data[i].first, std::real (data[i].second), std::imag (data[i].second));
     }
 
+    printf ("%g\n", (spec1.tv_sec - spec0.tv_sec)*1000.0 + (spec1.tv_nsec - spec0.tv_nsec)/1000000.0);
+
 
     fclose (output1);
 
     delete [] ui;
-
-    return 0;*/
+*/
+    return 0;
 }
 
 
@@ -137,9 +149,8 @@ void ThreadBorn_ (ThreadDataBorn_t td)
 
     complex<double> Gcoeff = w/inputData.c_ * std::complex<double>(0.0, 1.0);
 
-
     for (int n = td.recv_numBegin;
-         n < 1;//td.recv_numEnd;
+         n < td.recv_numEnd;
          n ++)
     {
         complex <double> result = 0;
