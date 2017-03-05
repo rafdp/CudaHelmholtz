@@ -1,6 +1,7 @@
 
 
 #include "CudaCalc.h"
+#include <time.h>
 
 #define _PI 3.1415926f
 
@@ -286,46 +287,37 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 	printf ("tabulated\n");
 	//PrintPointsVector printP;
 	//thrust::for_each (Points.begin(), Points.end(), printP);
-	cudaDeviceSynchronize ();
 	printf ("afte forech\n");
 
+	complexPlus binary_op;
+	thrust::device_vector <thrust::complex<float> > BornForReciever(size3);	
+	printf ("vector done\n");
+
 	////////////////////////
-	cudaEvent_t start, stop;
-	float time;
-	cudaEventCreate(&start);
-	cudaEventRecord(start, 0);
-	cudaEventCreate(&stop);
+	timespec spec0 = {};
+   	timespec spec1 = {};
+   	clock_gettime(CLOCK_MONOTONIC, &spec0);
         ////////////////////////
 
 	thrust::transform(dS.begin(), dS.end(), Points.begin(), Ui.begin(), UiMultiply()); // filling Ui array with w^2 * G(r) * ds^2 * h^3
-    	cudaDeviceSynchronize ();
-	printf ("transformed\n");
-	//PrintComplexVector printC;
-	//thrust::for_each (Ui.begin(), Ui.begin() + 20, printC);
-    	cudaDeviceSynchronize ();
-
-	thrust::device_vector <thrust::complex <float> > d_output(recvNum);
-	
-
+    
 	for (int i = 0; i < recvNum; i ++)
 	{
 		Point3D_t rj = inputData.receivers_[i];
 		//printf ("started counting recv n %d\n", i);
 
-		thrust::device_vector <thrust::complex<float> > BornForReciever(size3);
 		thrust::complex <float> init = (0.0f, 0.0f);
 		thrust::tabulate(BornForReciever.begin(), BornForReciever.end(), ComplexIndex()); 
 
 		//float init = 0; //ui to global
-		complexPlus binary_op;
+
 
 		(*retData) [i] = thrust::transform_reduce(BornForReciever.begin(), BornForReciever.end(), BornCalculation (rj), init, binary_op); //born calc to global ui
 	}
+	cudaDeviceSynchronize ();
 	//////////////////////////////////////////////
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&time, start, stop);
-	printf ("Time for the kernel: %f ms\n", time);
+	clock_gettime(CLOCK_MONOTONIC, &spec1);
+	printf ("%g\n", (spec1.tv_sec - spec0.tv_sec)*1000.0 + (spec1.tv_nsec - spec0.tv_nsec)/1000000.0);
 	//////////////////////////////////////////////
 
 }

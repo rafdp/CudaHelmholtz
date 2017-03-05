@@ -13,52 +13,10 @@
 
 #define _PI 3.1415926f
 __device__ thrust::complex<float> * UiPtr;
-
-
-template <typename T>
-struct Point3DDevice_t
-{
-    T x, y, z;
-
-    Point3DDevice_t (const Point3D_t &copy)
-    {
-        x = (T) copy.x;
-        y = (T) copy.y;
-        z = (T) copy.z;
-    }
-    __host__ __device__
-    Point3DDevice_t (): x(0), y(0), z (0){}
-
-    template <typename T1, typename T2, typename T3>
-    __host__ __device__
-    Point3DDevice_t (T1 tx, T2 ty, T3 tz) : 
-        x (tx), y (ty), z (tz){}
-
-    
-
-    __host__ __device__
-    T len () const
-    {
-        return (T) sqrtf (x*x + y*y + z*z);
-    }
-};
+InputData_t* INPUT_DATA_PTR = nullptr;
 
 __device__ Point3DDevice_t <float> * PointsPtr;
 
-struct InputDataOnDevice
-{
-    Point3DDevice_t<float> sourcePos_;
-    float w_; //DROP
-    thrust::complex<float> uiCoeff_;
-    Point3DDevice_t<float> anomalyPos_;
-    Point3DDevice_t<float> anomalySize_;
-    Point3DDevice_t<int>   discretizationSize_;
-    Point3DDevice_t<int>   discreteBlockSize_;
-    int                    size3_;
-    int                    size2_;
-    int                    size1_;
-    float                  w2h3_;
-};
 
 __device__ InputDataOnDevice * inputDataPtr;
 
@@ -175,19 +133,16 @@ __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr)
     printf ("--------------------------------------------------------------\n");
 }
 
-
-int main()
+extern "C"
+int main ()
 {
+
 	InputData_t inputData = {};
-	inputData.LoadData(); //pi and is
-
-
-
-	InputDataOnDevice* deviceInputData = nullptr;
+    //inputData.LoadData ();
 
 	printf ("ERROR: %s\n", cudaGetErrorString(cudaMalloc ((void**) &deviceInputData, sizeof (InputDataOnDevice))));
 
-    printf ("ERROR: %s\n", cudaGetErrorString(cudaMemcpyToSymbol(&inputData,
+    	printf ("ERROR: %s\n", cudaGetErrorString(cudaMemcpyToSymbol(&inputData,
                                                                  &deviceInputData,
                                                                  sizeof(InputDataOnDevice*))));
 
@@ -195,27 +150,19 @@ int main()
 	
 
 
-    int size3 = inputData.discretizationSize_[0] *
+    	int size3 = inputData.discretizationSize_[0] *
                 inputData.discretizationSize_[1] *
                 inputData.discretizationSize_[2];
 
-    #define PointConversion(var, type)\
-    (Point3DDevice_t<type>) \
-    {(type)(inputData.var.x),  \
-     (type)(inputData.var.y), \
-     (type)(inputData.var.z)}
 
-    InputDataOnDevice hostDataCopy = {PointConversion (sourcePos_, float),
+
+    	InputDataOnDevice hostDataCopy = {(inputData.sourcePos_),
                                       (float) (2*3.141592f*inputData.f_),
                                       thrust::complex<float> (0, (float) (2*3.141592f*inputData.f_/inputData.c_)),
-                                      PointConversion (anomalyPos_, float),
-                                      PointConversion (anomalySize_, float),
-                                      (Point3DDevice_t<int>){inputData.discretizationSize_[0],
-                                       inputData.discretizationSize_[1],
-                                       inputData.discretizationSize_[2]},
-                                      (Point3DDevice_t<int>){inputData.discreteBlockSize_[0],
-                                       inputData.discreteBlockSize_[1],
-                                       inputData.discreteBlockSize_[2]},
+                                     (inputData.anomalyPos_),
+                                      (inputData.anomalySize_),
+                                      inputData.discretizationSize_,
+                                      inputData.discreteBlockSize_,
                                       size3,
                                       inputData.discretizationSize_[0] *
                                       inputData.discretizationSize_[1],
@@ -223,7 +170,6 @@ int main()
                                       (float)(4*3.141592f*3.141592f*inputData.f_*inputData.f_*
                                       inputData.discreteBlockSize_[0]*inputData.discreteBlockSize_[1]*inputData.discreteBlockSize_[2])};
 
-    #undef PointConversion
 
     cudaMemcpy (deviceInputData, &hostDataCopy, sizeof (InputDataOnDevice), cudaMemcpyHostToDevice);
 
@@ -288,13 +234,13 @@ thrust::device_vector <Point3DDevice_t <float> > Points (size3);
 		d_output [i] = thrust::transform_reduce(BornForReciever.begin(), BornForReciever.end(), BornCalculation (rj), init, binary_op); //born calc to global ui
 	}
 
-	thrust::host_vector   <thrust::complex <float> > h_output(d_output);
+	thrust::host_vector<thrust::complex <float> > h_output(d_output);
+	//*retData = h_output;
 
 	for (int i = 0; i < recvNum; i++)
 	{
 		printf("%f + %fi\n", h_output[i].real(), h_output[i].imag());
 	}
-
 	return 0;
 }
 

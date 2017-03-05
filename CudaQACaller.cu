@@ -54,7 +54,7 @@ struct GreenOperatorBorn
 
 {
 	const Point3DDevice_t <float> rj;
-	BornCalculation(Point3D_t _rj) : rj(_rj) {}
+	GreenOperatorBorn(Point3DDevice_t <float> _rj) : rj(_rj) {}
 
     __device__
 	thrust::complex<float> operator()(thrust::complex<float> idxz) const
@@ -66,8 +66,13 @@ struct GreenOperatorBorn
 		Point3DDevice_t <float> r = *(PointsPtr + idx);
 
 		Point3DDevice_t <float> dr = {r.x - rj.x, r.y - rj.y, r.z - rj.z};
+
+		//printf ("(%e, %e, %e)\n", dr.x, dr.y, dr.z);
+	
+		thrust::complex <float> out = *(UiPtr + idx)  * thrust::exp(d_inputData -> uiCoeff_ * dr.len()) / (4 * _PI * dr.len());
 						            
-		return *(UiPtr + idx) * inputDataPtr -> w2h3_ * (*(dSPtr + idx)) * thrust::exp(d_inputData -> uiCoeff_ * dr.len()) / (4 * _PI * dr.len());
+		/*if (out.real() == inf)																																																							printf ("(%e, %e, %e)\n", dr.x, dr.y, dr.z);
+		else return thrust::complex <float> (0.0, 0.0);*/
 	}
 };
 
@@ -76,7 +81,7 @@ struct GreenOperatorQA
 
 {
 	const Point3DDevice_t <float> rj;
-	BornCalculation(Point3D_t _rj) : rj(_rj) {}
+	GreenOperatorQA (Point3D_t _rj) : rj(_rj) {}
 
     __device__
 	thrust::complex<float> operator()(thrust::complex<float> idxz) const
@@ -89,8 +94,9 @@ struct GreenOperatorQA
 
 		Point3DDevice_t <float> dr = {r.x - rj.x, r.y - rj.y, r.z - rj.z};
 						            
-		return (*(UiPtr + idx)/(*(1 - *(UbPtr + idx) / *(UiPtr + idx)) * 
+		if (abs (r.len()) > 0.0000001) return (*(UiPtr + idx)/((*(UiPtr + idx) - *(UbPtr + idx)) / *(UiPtr + idx)))* 
 				inputDataPtr -> w2h3_ * (*(dSPtr + idx)) * thrust::exp(d_inputData -> uiCoeff_ * dr.len()) / (4 * _PI * dr.len());
+		else return thrust::complex <float> (0.0, 0.0);
 	}
 };
 
@@ -138,6 +144,7 @@ struct UiMultiply
 	{
 		//printf ("%f\n",	ds.imag());	inputDataPtr -> w2h3_ * ds * 
 		if (abs (r.len()) > 0.0000001) return thrust::exp(inputDataPtr -> uiCoeff_ * r.len()) / (4 * _PI * r.len());
+		else return thrust::complex <float> (0.0, 0.0);
 	}
 
 };
@@ -164,9 +171,7 @@ struct IndexFromSequence
     }
 };
 
-__global__
-
-void DevicePrint ()
+__global__ void DevicePrint ()
 {
     printf ("--------------------------------------------------------------\n");
     printf ("threadIdx.x: %d\n", threadIdx.x);
@@ -288,7 +293,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
 	printf ("hostDs2 done\n");
     thrust::device_vector<thrust::complex<float> > dS (hostDs2Matrix);
-	tempPtr = dS.data ().get ();
+	void * tempPtr = dS.data ().get ();
     cudaMemcpyToSymbol(dSPtr,
                        &tempPtr,
                        sizeof(void*));
@@ -296,7 +301,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 	printf ("ds2 sent to device\n");
 
 	thrust::device_vector <thrust::complex <float> > Ui (size3);
-	 void * tempPtr = Ui.data ().get ();
+	 tempPtr = Ui.data ().get ();
    cudaMemcpyToSymbol(UiPtr,
                        &tempPtr,
                       sizeof(void*));
@@ -327,7 +332,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 	cudaEventCreate(&stop);
         ////////////////////////
 
-	thrust::transform(Points.begin(),Points.end() Ui.begin(), UiMultiply()); // filling Ui array with G(r)
+	thrust::transform (Points.begin(), Points.end(), Ui.begin(), UiMultiply()); // filling Ui array with G(r)
     	cudaDeviceSynchronize ();
 	printf ("transformed\n");
 	//PrintComplexVector printC;
@@ -336,37 +341,41 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
 	thrust::device_vector <thrust::complex <float> > Ub (size3);
 	tempPtr = Ub.data ().get ();
-    cudaMemcpyToSymbol(UbPtr,
-                       &tempPtr,
-                       sizeof(void*));
+    	cudaMemcpyToSymbol(UbPtr,
+                     	  &tempPtr,
+                     	  sizeof(void*));
+
+	thrust::device_vector <thrust::complex<float> > BornForReciever(size3);
+		thrust::complex <float> init = (0.0f, 0.0f);complexPlus binary_op;
 	
 
 	for (int i = 0; i < size3; i ++)
 	{
-		Point3D_t rj = Points [i];
+		Point3DDevice_t <float> rj = Points [i];
 		//printf ("started counting recv n %d\n", i);
 
-		thrust::device_vector <thrust::complex<float> > BornForReciever(size3);
-		thrust::complex <float> init = (0.0f, 0.0f);
-		thrust::tabulate(BornForReciever.begin(), BornForReciever.end(), ComplexIndex()); 
+		thrust::tabulate(BornForReciever.begin(), BornForReciever.begin(), ComplexIndex()); 
 
 		//float init = 0; //ui to global
-		complexPlus binary_op;
+		
 
-		Ub [i] = thrust::transform_reduce(BornForReciever.begin(), BornForReciever.end(), GreenOperatorBorn(rj), init, binary_op); //born calc to global ui
+		Ub [i] = thrust::transform_reduce(BornForReciever.begin (), BornForReciever.end (), GreenOperatorBorn (rj), init, binary_op); //born calc to global ui
+		cudaDeviceSynchronize ();
+		//scanf ("%d", &i);
 	}
+	cudaDeviceSynchronize ();
+	//thrust::for_each (Ub.begin () + 100, Ub.begin () + 400, PrintComplexVector());
+
 
 	for (int i = 0; i < recvNum; i ++)
 	{
 		Point3D_t rj = inputData.receivers_[i];
 		//printf ("started counting recv n %d\n", i);
 
-		thrust::device_vector <thrust::complex<float> > BornForReciever(size3);
-		thrust::complex <float> init = (0.0f, 0.0f);
+		
 		thrust::tabulate(BornForReciever.begin(), BornForReciever.end(), ComplexIndex()); 
 
 		//float init = 0; //ui to global
-		complexPlus binary_op;
 
 		(*retData) [i] = thrust::transform_reduce(BornForReciever.begin(), BornForReciever.end(), GreenOperatorQA (rj), init, binary_op); //born calc to global ui
 	}

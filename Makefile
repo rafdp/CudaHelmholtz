@@ -6,16 +6,16 @@
 # to compile, run, plot and clean: make rcp
 
 
-.DEFAULT_GOAL := cuda
+.DEFAULT_GOAL := main
 
 CC = g++ 
 CU = nvcc
-CUFLAGS = -Wno-deprecated-gpu-targets to suppress warning
+CUFLAGS = -Wno-deprecated-gpu-targets
 CFLAGS = -std=c++11 -Wall
 
 
-main: DataLoader.o main.o CudaCalcCaller.o BornCalc.o 
-	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o  DataLoader.o main.o -lpthread 
+main: DataLoader.o main.o CudaQACaller.o 
+	$(CU) $(CUFLAGS) -o main CudaQACaller.o  DataLoader.o main.o -lpthread 
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
@@ -23,15 +23,16 @@ DataLoader.o: DataLoader.cpp Builder.h
 BornCalc.o: BornCalc.cpp BornCalc.h
 	$(CC) $(CFLAGS) -c BornCalc.cpp	
 
-CudaCalcCaller.o: CudaCalcCaller.cu CudaCalc.h
-	$(CU) $(CUFLAGS) -std=c++11 -c CudaCalcCaller.cu
+CudaQACaller.o: CudaQACaller.cu CudaCalc.h
+	$(CU) $(CUFLAGS) -std=c++11 -c CudaQACaller.cu
 
 main.o: main.cpp Builder.h
 	$(CC) $(CFLAGS) -c main.cpp
 
-cuda:
+cuda:	DataLoader.o # CudaQACaller.o
 	nvcc -c -std=c++11 main.cu
-	$(CU) $(CUFLAGS) -o main main.o 
+	$(CU) $(CUFLAGS) -o main main.o DataLoader.o # CudaQACaller.o
+	./main
 
 c: 
 	rm -rf main *.o InputDataExec input.data
