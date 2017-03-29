@@ -1,63 +1,7 @@
 
 //=================================================================
 
-#include <thrust/device_vector.h>
-#include <thrust/transform.h>
-#include <thrust/sequence.h>
-#include <thrust/copy.h>
-#include <thrust/fill.h>
-#include <thrust/replace.h>
-#include <thrust/transform_reduce.h>
-#include <thrust/memory.h>
-#include <thrust/complex.h>
-#include <thrust/device_new.h>
-#include <thrust/functional.h>
-#include "cublas_v2.h"
-
-
 #include "CudaCalc.h"
-/*
-struct InputDataOnDevice
-{
-    Point3DDevice_t<float> sourcePos_;
-    thrust::complex<float> uiCoeff_;
-    Point3DDevice_t<float> anomalyPos_;
-    Point3DDevice_t<float> anomalySize_;
-    Point3DDevice_t<int>   discretizationSize_;
-    Point3DDevice_t<int>   discreteBlockSize_;
-    int                    size3_;
-    int                    size2_;
-    int                    size1_;
-    float                  w2h3_;
-};*/
-
-//-----------------------------------------------------------------
-
-__global__ void BornForRecieversKernel (complex<double> * P_recv, InputData_t* INPUT_DATA_PTR)
-//cannot pass host data pointer to kernel, need to copy to device memory
-{
-    /*Point3D_t r = {static_cast<int> (threadIdx.x + blockIdx.x * BLOCK_SIZE_),
-                   static_cast<int> (threadIdx.y + blockIdx.y * BLOCK_SIZE_),
-                   static_cast<int> (threadIdx.z + blockIdx.z * BLOCK_SIZE_)};
-//static cast needed for unsigned int -> int warning
-
-    int recv_num = INPUT_DATA_PTR->recievers_.size ();
-    for (int i = 0; i < recv_num; i ++)
-    {
-        P_recv [i] += BornForPoint (r, INPUT_DATA_PTR->recievers_ [i]);
-    }*/
-//There is a major problem with this kernel code: CUDA cannot call functions that are implemented on host (e.g. BornForPoint).
-//You need to rewrite them on the gpu via cuda
-
-}
-
-__global__ void DevicePrint ()
-{
-    printf ("--------------------------------------------------------------\n");
-    printf ("threadIdx.x: %d\n", threadIdx.x);
-    printf ("--------------------------------------------------------------\n");
-}
-
 
 __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr)
 {
@@ -105,5 +49,101 @@ __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr)
     printf ("End print from device\n");
     printf ("--------------------------------------------------------------\n");
 }
+
+const char * cublasGetErrorString (cublasStatus_t error)
+{
+    switch (error)
+    {
+        case CUBLAS_STATUS_SUCCESS:
+            return "CUBLAS_STATUS_SUCCESS";
+
+        case CUBLAS_STATUS_NOT_INITIALIZED:
+            return "CUBLAS_STATUS_NOT_INITIALIZED";
+
+        case CUBLAS_STATUS_ALLOC_FAILED:
+            return "CUBLAS_STATUS_ALLOC_FAILED";
+
+        case CUBLAS_STATUS_INVALID_VALUE:
+            return "CUBLAS_STATUS_INVALID_VALUE";
+
+        case CUBLAS_STATUS_ARCH_MISMATCH:
+            return "CUBLAS_STATUS_ARCH_MISMATCH";
+
+        case CUBLAS_STATUS_MAPPING_ERROR:
+            return "CUBLAS_STATUS_MAPPING_ERROR";
+
+        case CUBLAS_STATUS_EXECUTION_FAILED:
+            return "CUBLAS_STATUS_EXECUTION_FAILED";
+
+        case CUBLAS_STATUS_INTERNAL_ERROR:
+            return "CUBLAS_STATUS_INTERNAL_ERROR";
+    }
+
+    return "<unknown>";
+}
+
+const char * cusolverGetErrorString (cusolverStatus_t error)
+{
+    switch (error)
+    {
+        case CUSOLVER_STATUS_SUCCESS:
+            return "The operation completed successfully";
+
+        case CUSOLVER_STATUS_NOT_INITIALIZED:
+            return "The library was not initialized";
+
+        case CUSOLVER_STATUS_INVALID_VALUE:
+            return "Invalid parameters were passed";
+
+        case CUSOLVER_STATUS_ARCH_MISMATCH:
+            return "The device only supports compute capability 2.0 and above";
+
+        case CUSOLVER_STATUS_INTERNAL_ERROR:
+            return "CUSOLVER_STATUS_INTERNAL_ERROR";
+    }
+
+    return "<unknown>";
+}
+
+
+template <typename T>
+__host__ __device__
+float Point3DDevice_t<T>::len ()
+{
+    return sqrtf (x*x + y*y + z*z);
+}
+
+template <typename T>
+__host__ __device__
+Point3DDevice_t<T>::Point3DDevice_t (const Point3D_t& p) :
+    x (p.x),
+    y (p.y),
+    z (p.z)
+{}
+
+template <typename T>
+__host__ __device__
+Point3DDevice_t<T>::Point3DDevice_t () :
+    x (0.0f),
+    y (0.0f),
+    z (0.0f)
+{}
+
+template <typename T>
+template <typename T1>
+__host__ __device__
+Point3DDevice_t<T>::Point3DDevice_t (T1 tx, T1 ty, T1 tz) :
+    x (tx),
+    y (ty),
+    z (tz)
+{}
+
+template <typename T>
+__host__ __device__
+Point3DDevice_t<T>::Point3DDevice_t (T* init) :
+    x (init[0]),
+    y (init[1]),
+    z (init[2])
+{}
 
 //=================================================================

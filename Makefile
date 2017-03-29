@@ -14,21 +14,20 @@ CUFLAGS = -Wno-deprecated-gpu-targets
 CFLAGS = -std=c++11 -Wall
 
 
-main: DataLoader.o main.o CudaCalcCaller.o CudaCalc.o
-#BornCalc.o
-	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o CudaCalc.o DataLoader.o main.o -lpthread -lcuda -lcudart -lcublas -lcusolver
+main: DataLoader.o main.o CudaCalcCaller.o CudaCalc.o BiCGStabCuda.o
+	$(CU) $(CUFLAGS) -o main CudaCalcCaller.o BiCGStabCuda.o CudaCalc.o  DataLoader.o main.o -lpthread -lcuda -lcudart -lcublas -lcusolver
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
-
-BornCalc.o: BornCalc.cpp BornCalc.h
-	$(CC) $(CFLAGS) -c BornCalc.cpp
 
 CudaCalcCaller.o: CudaCalcCaller.cu CudaCalc.h
 	$(CU) $(CUFLAGS) -std=c++11 -c CudaCalcCaller.cu
 
 CudaCalc.o: CudaCalc.cu CudaCalc.h
 	$(CU) $(CUFLAGS) -std=c++11 -c CudaCalc.cu
+
+BiCGStabCuda.o: BiCGStabCuda.cu BiCGStabCuda.h CudaCalc.h
+	$(CU) $(CUFLAGS) -std=c++11 -c BiCGStabCuda.cu
 
 main.o: main.cpp Builder.h
 	$(CC) $(CFLAGS) -c main.cpp

@@ -84,12 +84,43 @@ struct InputDataOnDevice
 };
 
 
-
-__global__ void BornForRecieversKernel (int * P_recv, InputData_t* INPUT_DATA_PTR);
-
 __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr);
 
-__global__ void DevicePrint ();
+const char * cublasGetErrorString (cublasStatus_t error);
+const char * cusolverGetErrorString (cusolverStatus_t error);
+
+typedef thrust::complex<float> complex_t;
+typedef Point3DDevice_t<float> point_t;
+
+#define CC(op) \
+cudaStat = (op); \
+if (cudaStat != cudaSuccess) \
+{ \
+    printf ("-----------------\n    Error occurred (cuda)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", __LINE__, #op, cudaGetErrorString(cudaStat)); \
+    exit (1); \
+}
+
+#define CB(op) \
+cublas_status = (op); \
+if (cublas_status != CUBLAS_STATUS_SUCCESS) \
+{ \
+    printf ("-----------------\n    Error occurred (cublas)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", __LINE__, #op, cublasGetErrorString(cublas_status)); \
+    exit (1); \
+}
+
+#define CS(op) \
+cusolver_status = (op); \
+if (cusolver_status != CUSOLVER_STATUS_SUCCESS) \
+{ \
+    CC(cudaMemcpy(&devInfoHost, devInfo, sizeof(int), cudaMemcpyDeviceToHost));\
+    printf ("-----------------\n    Error occurred (cusolver, devinfo %d)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", devInfoHost, __LINE__, #op, cusolverGetErrorString(cusolver_status)); \
+    exit (1); \
+}
+
+#define LL printf ("_%d_\n", __LINE__);
+
+
+#include "BiCGStabCuda.h"
 
 
 #endif

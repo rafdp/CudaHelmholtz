@@ -3,54 +3,6 @@
 
 #include "CudaCalc.h"
 
-typedef thrust::complex<float> complex_t;
-typedef Point3DDevice_t<float> point_t;
-
-
-static const char * cublasGetErrorString (cublasStatus_t error);
-static const char * cusolverGetErrorString (cusolverStatus_t error);
-
-
-template <typename T>
-__host__ __device__
-float Point3DDevice_t<T>::len ()
-{
-    return sqrtf (x*x + y*y + z*z);
-}
-
-template <typename T>
-__host__ __device__
-Point3DDevice_t<T>::Point3DDevice_t (const Point3D_t& p) :
-    x (p.x),
-    y (p.y),
-    z (p.z)
-{}
-
-template <typename T>
-__host__ __device__
-Point3DDevice_t<T>::Point3DDevice_t () :
-    x (0.0f),
-    y (0.0f),
-    z (0.0f)
-{}
-
-template <typename T>
-template <typename T1>
-__host__ __device__
-Point3DDevice_t<T>::Point3DDevice_t (T1 tx, T1 ty, T1 tz) :
-    x (tx),
-    y (ty),
-    z (tz)
-{}
-
-template <typename T>
-__host__ __device__
-Point3DDevice_t<T>::Point3DDevice_t (T* init) :
-    x (init[0]),
-    y (init[1]),
-    z (init[2])
-{}
-
 __device__ InputDataOnDevice * inputDataPtr;
 
 struct ModifyKMatrix
@@ -217,8 +169,51 @@ struct IndexFromSequence
 extern "C"
 void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<float> >* retData)
 {
+    cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
+    LL
 
-	InputData_t& inputData = *inputDataPtr_;
+    cublasHandle_t cublasH = nullptr;
+    CB(cublasCreate(&cublasH));
+
+    thrust::host_vector <complex_t> A_ (9);
+    A_[0] = complex_t (1.0f, 0.0f);
+    A_[3] = complex_t (1.0f, 0.0f);
+    A_[6] = complex_t (1.0f, 0.0f);
+    A_[1] = complex_t (1.0f, 0.0f);
+    A_[4] = complex_t (-4.0f, 0.0f);
+    A_[7] = complex_t (1.0f, 0.0f);
+    A_[2] = complex_t (1.0f, 0.0f);
+    A_[5] = complex_t (3.0f, 0.0f);
+    A_[8] = complex_t (4.0f, 0.0f);
+    thrust::host_vector <complex_t> b_ (3);
+
+    LL
+    b_[0] = complex_t (-5.0f, 0.0f);
+    b_[1] = complex_t (35.0f, 0.0f);
+    b_[2] = complex_t (-18.0f, 0.0f);
+
+    LL
+    thrust::device_vector <complex_t> x (3);
+    thrust::device_vector <complex_t> A (A_);
+    thrust::device_vector <complex_t> b (b_);
+
+    LL
+    BiCGStabCudaSolver solver (3, b.data().get (), A.data().get (), &cublasH);
+
+    for (int i = 5; i < 10; i++)
+    {
+        LL
+        solver.solve (x.data().get (), i);
+        LL
+        thrust::host_vector <complex_t> x_ (x);
+
+        printf ("After %d iterations: %g+(%g)i  %g+(%g)i  %g+(%g)i\n\n", i,
+                x_[0].real (), x_[0].imag (),
+                x_[1].real (), x_[1].imag (),
+                x_[2].real (), x_[2].imag ());
+    }
+
+	/*InputData_t& inputData = *inputDataPtr_;
 
 	InputDataOnDevice* deviceInputData = nullptr;
 
@@ -227,34 +222,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     cudaError_t cudaStat = cudaSuccess;
     int* devInfo = nullptr;
     int devInfoHost = 0;
-
-
-    #define CC(op) \
-    cudaStat = (op); \
-	if (cudaStat != cudaSuccess) \
-    { \
-        printf ("-----------------\n    Error occurred (cuda)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", __LINE__, #op, cudaGetErrorString(cudaStat)); \
-        return; \
-    }
-
-    #define CB(op) \
-    cublas_status = (op); \
-	if (cublas_status != CUBLAS_STATUS_SUCCESS) \
-    { \
-        printf ("-----------------\n    Error occurred (cublas)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", __LINE__, #op, cublasGetErrorString(cublas_status)); \
-        return; \
-    }
-
-    #define CS(op) \
-    cusolver_status = (op); \
-	if (cusolver_status != CUSOLVER_STATUS_SUCCESS) \
-    { \
-        CC(cudaMemcpy(&devInfoHost, devInfo, sizeof(int), cudaMemcpyDeviceToHost));\
-        printf ("-----------------\n    Error occurred (cusolver, devinfo %d)\n   line %d: %s\n    Error text:\"%s\"\n-----------------", devInfoHost, __LINE__, #op, cusolverGetErrorString(cusolver_status)); \
-        return; \
-    }
-
-    #define LL printf ("_%d_\n", __LINE__);
 
     CC(cudaMalloc ((void**) &deviceInputData, sizeof (InputDataOnDevice)));
 
@@ -458,69 +425,9 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     CC(cudaFree (deviceInputData));
     CC(cudaFree (devInfo));
-    LL
-
-    #undef CC
-    #undef CB
-    #undef CS
-    #undef PointConversion
-
-}
+    LL*/
 
 
-static const char * cublasGetErrorString (cublasStatus_t error)
-{
-    switch (error)
-    {
-        case CUBLAS_STATUS_SUCCESS:
-            return "CUBLAS_STATUS_SUCCESS";
-
-        case CUBLAS_STATUS_NOT_INITIALIZED:
-            return "CUBLAS_STATUS_NOT_INITIALIZED";
-
-        case CUBLAS_STATUS_ALLOC_FAILED:
-            return "CUBLAS_STATUS_ALLOC_FAILED";
-
-        case CUBLAS_STATUS_INVALID_VALUE:
-            return "CUBLAS_STATUS_INVALID_VALUE";
-
-        case CUBLAS_STATUS_ARCH_MISMATCH:
-            return "CUBLAS_STATUS_ARCH_MISMATCH";
-
-        case CUBLAS_STATUS_MAPPING_ERROR:
-            return "CUBLAS_STATUS_MAPPING_ERROR";
-
-        case CUBLAS_STATUS_EXECUTION_FAILED:
-            return "CUBLAS_STATUS_EXECUTION_FAILED";
-
-        case CUBLAS_STATUS_INTERNAL_ERROR:
-            return "CUBLAS_STATUS_INTERNAL_ERROR";
-    }
-
-    return "<unknown>";
-}
-
-static const char * cusolverGetErrorString (cusolverStatus_t error)
-{
-    switch (error)
-    {
-        case CUSOLVER_STATUS_SUCCESS:
-            return "The operation completed successfully";
-
-        case CUSOLVER_STATUS_NOT_INITIALIZED:
-            return "The library was not initialized";
-
-        case CUSOLVER_STATUS_INVALID_VALUE:
-            return "Invalid parameters were passed";
-
-        case CUSOLVER_STATUS_ARCH_MISMATCH:
-            return "The device only supports compute capability 2.0 and above";
-
-        case CUSOLVER_STATUS_INTERNAL_ERROR:
-            return "CUSOLVER_STATUS_INTERNAL_ERROR";
-    }
-
-    return "<unknown>";
 }
 
 
