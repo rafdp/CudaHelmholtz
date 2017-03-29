@@ -330,13 +330,12 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 	cudaEventCreate(&start);
 	cudaEventRecord(start, 0);
 	cudaEventCreate(&stop);
-        ////////////////////////
+    ////////////////////////
 
 	thrust::transform (Points.begin(), Points.end(), Ui.begin(), UiMultiply()); // filling Ui array with G(r)
     	cudaDeviceSynchronize ();
 	printf ("transformed\n");
-	//PrintComplexVector printC;
-	//thrust::for_each (Ui.begin(), Ui.begin() + 20, printC);
+
     	cudaDeviceSynchronize ();
 
 	thrust::device_vector <thrust::complex <float> > Ub (size3);
@@ -349,7 +348,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 		thrust::complex <float> init = (0.0f, 0.0f);complexPlus binary_op;
 	
 
-	for (int i = 0; i < size3; i ++)
+	for (int i = 0; i < size3; i ++) //filling Ub array with Born results
 	{
 		Point3DDevice_t <float> rj = Points [i];
 		//printf ("started counting recv n %d\n", i);
@@ -367,7 +366,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 	//thrust::for_each (Ub.begin () + 100, Ub.begin () + 400, PrintComplexVector());
 
 
-	for (int i = 0; i < recvNum; i ++)
+	for (int i = 0; i < recvNum; i ++) //computing QA values
 	{
 		Point3D_t rj = inputData.receivers_[i];
 		//printf ("started counting recv n %d\n", i);
