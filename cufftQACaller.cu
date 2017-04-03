@@ -185,6 +185,15 @@ struct ExtendBorn
 
 };
 
+struct SrinkBorn
+{
+	__device__
+	thrust::complex <float> operator()(int idx) const 
+	{
+		return 4*idx/inputDataPtr->size2_ + 2*idx/inputDataPtr->size1_ + idx%inputDataPtr->size1_
+	}
+};
+
 struct IndexFromSequence
 {
     __device__
@@ -361,7 +370,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
 	thrust::transform (Points.begin(), Points.end(), Ui.begin(), GreenForPoints()); // filling Ui array with G(r)
     cudaDeviceSynchronize();
-	thrust::device_vector <Point3DDevice_t <float>> GreenSymmetry(4*size3);			
+	thrust::device_vector <Point3DDevice_t <float>> GreenSymmetry(4*size3 - 3*size2 + 2*size1);			
 	thrust::tabulate (GreenSymmetry.begin(), GreenSymmetry.end(), ReflectGreen());
 
 
