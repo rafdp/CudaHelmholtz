@@ -14,8 +14,8 @@ CUFLAGS = -Wno-deprecated-gpu-targets
 CFLAGS = -std=c++11 -Wall
 
 
-main: DataLoader.o main.o CudaQACaller.o 
-	$(CU) $(CUFLAGS) -o main CudaQACaller.o  DataLoader.o main.o -lpthread 
+main: DataLoader.o main.o cufftQACaller.o 
+	$(CU) $(CUFLAGS) -o main cufftQACaller.o  DataLoader.o main.o -lpthread 
 
 DataLoader.o: DataLoader.cpp Builder.h
 	$(CC) $(CFLAGS) -c DataLoader.cpp
@@ -23,15 +23,15 @@ DataLoader.o: DataLoader.cpp Builder.h
 BornCalc.o: BornCalc.cpp BornCalc.h
 	$(CC) $(CFLAGS) -c BornCalc.cpp	
 
-CudaQACaller.o: CudaQACaller.cu CudaCalc.h
-	$(CU) $(CUFLAGS) -std=c++11 -c CudaQACaller.cu
+cufftQACaller.o: cufftQACaller.cu CudaCalc.h
+	$(CU) $(CUFLAGS) -std=c++11 -c cufftQACaller.cu
 
 main.o: main.cpp Builder.h
 	$(CC) $(CFLAGS) -c main.cpp
 
-cuda:	DataLoader.o # CudaQACaller.o
+cuda:	DataLoader.o # cufftQACaller.o
 	nvcc -c -std=c++11 main.cu
-	$(CU) $(CUFLAGS) -o main main.o DataLoader.o # CudaQACaller.o
+	$(CU) $(CUFLAGS) -o main main.o DataLoader.o # cufftQACaller.o
 	./main
 
 c: 

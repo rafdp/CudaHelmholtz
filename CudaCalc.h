@@ -12,6 +12,7 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/transform.h>
 #include <thrust/functional.h>
+#include <cufft.h>
 #endif
 #include "Builder.h"
 
