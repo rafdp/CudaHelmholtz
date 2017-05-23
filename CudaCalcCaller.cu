@@ -88,8 +88,8 @@ __device__
     {
         point_t pos = *(deviceIndexesPtr + idx);
         point_t dr = {inputDataPtr->sourcePos_.x - pos.x,
-                                     inputDataPtr->sourcePos_.y - pos.y,
-                                     inputDataPtr->sourcePos_.z - pos.z};
+                      inputDataPtr->sourcePos_.y - pos.y,
+                      inputDataPtr->sourcePos_.z - pos.z};
         float len = dr.len ();
         if (len < 0.0000001 && len > 0.0000001) return;
         *(deviceAMatrixPtr + idx*(inputDataPtr->size3_+1)) = -thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
@@ -169,13 +169,13 @@ struct IndexFromSequence
 extern "C"
 void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<float> >* retData)
 {
-    cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
+    /*cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
     LL
 
-    cublasHandle_t cublasH = nullptr;
-    CB(cublasCreate(&cublasH));
+    cublasHandle_t cublasH = nullptr;*/
+    //CB(cublasCreate(&cublasH));
 
-    thrust::host_vector <complex_t> A_ (9);
+    /*thrust::host_vector <complex_t> A_ (9);
     A_[0] = complex_t (1.0f, 0.0f);
     A_[3] = complex_t (1.0f, 0.0f);
     A_[6] = complex_t (1.0f, 0.0f);
@@ -193,27 +193,29 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     b_[2] = complex_t (-18.0f, 0.0f);
 
     LL
-    thrust::device_vector <complex_t> x (3);
+    thrust::host_vector <complex_t> x_0 (3);
+    x_0[0] = complex_t (0.0f, 0.0f);
+    x_0[1] = complex_t (0.0f, 0.0f);
+    x_0[2] = complex_t (0.0f, 0.0f);
+    thrust::device_vector <complex_t> x (x_0);
     thrust::device_vector <complex_t> A (A_);
     thrust::device_vector <complex_t> b (b_);
 
     LL
-    BiCGStabCudaSolver solver (3, b.data().get (), A.data().get (), &cublasH);
+    BiCGStabCudaSolver solver (3, b.data().get (), A.data().get ());
 
-    for (int i = 5; i < 10; i++)
-    {
-        LL
-        solver.solve (x.data().get (), i);
-        LL
-        thrust::host_vector <complex_t> x_ (x);
+    LL
+    solver.solve (x.data().get (), 10);
+    LL
+    thrust::host_vector <complex_t> x_ (x);
 
-        printf ("After %d iterations: %g+(%g)i  %g+(%g)i  %g+(%g)i\n\n", i,
-                x_[0].real (), x_[0].imag (),
-                x_[1].real (), x_[1].imag (),
-                x_[2].real (), x_[2].imag ());
-    }
+    printf ("After 10 iterations: \n%f+(%f)i  \n%f+(%f)i  \n%f+(%f)i\n\n",
+            x_[0].real (), x_[0].imag (),
+            x_[1].real (), x_[1].imag (),
+            x_[2].real (), x_[2].imag ());*/
 
-	/*InputData_t& inputData = *inputDataPtr_;
+
+	InputData_t& inputData = *inputDataPtr_;
 
 	InputDataOnDevice* deviceInputData = nullptr;
 
@@ -308,6 +310,11 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     complex_t alpha (1.0f, 0.0f);
     complex_t beta (0.0f, 0.0f);
+    
+    /*for (int i = 0; i < size3; i ++)
+    {
+        deviceAMatrix[i] *= alpha;
+    }*/
 
     /// reductedA_solution = alpha*A*ones+beta*reductedA_solution = A*ones
     CB(cublasCgemv (cublasH, CUBLAS_OP_N, size3, size3,
@@ -336,7 +343,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     /// 3. Querying workspace for cusolverDn
 
-    int workspaceSize = 0;
+    /*int workspaceSize = 0;
 
     CS(cusolverDnCgeqrf_bufferSize(cudenseH,
                                    size3,
@@ -406,8 +413,31 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
                    size3,
                    reinterpret_cast <cuComplex*> (reductedA_solution.data ().get ()),
                    size3));
+    //3-6. Bicgstab solution*/
+
+    thrust::host_vector <complex_t> x_0 (size3, complex_t (0.0f, 0.0f));
+    thrust::device_vector <complex_t> x (x_0);
+
+    LL
+    BiCGStabCudaSolver solver (size3, reductedA_solution.data().get (), deviceAMatrix.data().get ());
+
+    LL
+    solver.solve (x.data().get (), 2000);
 
     CC(cudaDeviceSynchronize());
+
+    CB (cublasCcopy (cublasH, size3,
+                         (reinterpret_cast <cuComplex*> (x.data().get ())), 1,
+                         (reinterpret_cast <cuComplex*> (reductedA_solution.data().get ())), 1));
+    
+    alpha = complex_t (1.0f, 0.0f);
+    
+    CB(cublasCscal(cublasH, size3,
+                    reinterpret_cast <cuComplex*> (&alpha),
+                    reinterpret_cast <cuComplex*> (reductedA_solution.data ().get ()), 1));
+
+
+
 
 
     /// 7. receiver convolution
@@ -422,10 +452,10 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     }
 
 
-
+    CB(cublasDestroy (cublasH));
     CC(cudaFree (deviceInputData));
     CC(cudaFree (devInfo));
-    LL*/
+    LL
 
 
 }

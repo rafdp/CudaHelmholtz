@@ -105,7 +105,7 @@ const char * cusolverGetErrorString (cusolverStatus_t error)
     return "<unknown>";
 }
 
-
+/*
 template <typename T>
 __host__ __device__
 float Point3DDevice_t<T>::len ()
@@ -145,5 +145,5 @@ Point3DDevice_t<T>::Point3DDevice_t (T* init) :
     y (init[1]),
     z (init[2])
 {}
-
+*/
 //=================================================================

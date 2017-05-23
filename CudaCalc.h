@@ -65,6 +65,56 @@ struct Point3DDevice_t
     float len ();
 };
 
+#ifdef __CUDACC__
+template <typename T>
+__host__ __device__
+float Point3DDevice_t<T>::len ()
+{
+    return sqrtf (x*x + y*y + z*z);
+}
+#endif
+
+#ifdef __CUDACC__
+template <typename T>
+__host__ __device__
+Point3DDevice_t<T>::Point3DDevice_t (const Point3D_t& p) :
+    x (p.x),
+    y (p.y),
+    z (p.z)
+{}
+#endif
+
+#ifdef __CUDACC__
+template <typename T>
+__host__ __device__
+Point3DDevice_t<T>::Point3DDevice_t () :
+    x (0.0f),
+    y (0.0f),
+    z (0.0f)
+{}
+#endif
+
+#ifdef __CUDACC__
+template <typename T>
+template <typename T1>
+__host__ __device__
+Point3DDevice_t<T>::Point3DDevice_t (T1 tx, T1 ty, T1 tz) :
+    x (tx),
+    y (ty),
+    z (tz)
+{}
+#endif
+
+#ifdef __CUDACC__
+template <typename T>
+__host__ __device__
+Point3DDevice_t<T>::Point3DDevice_t (T* init) :
+    x (init[0]),
+    y (init[1]),
+    z (init[2])
+{}
+#endif
+
 
 struct InputDataOnDevice;
 
