@@ -82,10 +82,11 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter)
     cuComplex* r = cc(r_.data().get());
     CB (cublasCgemv(cublasHandle_, CUBLAS_OP_N, n_, n_, cc(&minusOne), 
                     A, n_, x, 1, cc(&one), r, 1));
+    
 
     thrust::device_vector<complex_t> r0_ (r_);
     LL
-    cuComplex* r0 = cc(r_.data().get());
+    cuComplex* r0 = cc(r0_.data().get());
 
     thrust::device_vector<complex_t> v_ (n_, complex_t(0.0f, 0.0f));
     LL
@@ -105,22 +106,25 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter)
 
     LL
     //CB (cublasCscal(cublasHandle_, n_, cc(&zero), x, 1));
-    /*#define pp(x) printf ("%s = \n(%e, %e)\n\n", #x, x.real (), x.imag ());
+    //#define pp(x) printf ("%s = \n(%e, %e)\n\n", #x, x.real (), x.imag ());
     #define cn(x) if (x.real() != x.real ()) {printf ("break on nan %s\n", #x); break;}
-    #define pp_(a) printf ("%s = \n(%f, %f)\n(%f, %f)\n(%f, %f)\n\n", #a, \
+    //#define pp_(a) printf ("%s = \n(%f, %f)\n(%f, %f)\n(%f, %f)\n\n", #a, \
     a[0].x, a[0].y, \
     a[1].x, a[1].y, \
-    a[2].x, a[2].y);*/
+    a[2].x, a[2].y);
     #define pp(x)
-    #define cn(x) if (x.real() != x.real ()) {printf ("break on nan %s\n", #x); break;}
     #define pp_(a) 
     
     int restarts = 0;
     float r0Norm = 0.0f;
     CB (cublasScnrm2 (cublasHandle_, n_, r0, 1, &r0Norm));
+    float bNorm = 0.0f;
+    CB (cublasScnrm2 (cublasHandle_, n_, b, 1, &bNorm));
+    int iOld = 0;
+    int consecutiveRestarts = 0;
     for (int i = 0; i < nIter; i++)
     {
-        CB (cublasScnrm2 (cublasHandle_, n_, r, 1, &norm));
+        //CB (cublasScnrm2 (cublasHandle_, n_, r, 1, &norm));
         printf ("Start iter %d\n", i);
         //printf ("|rho| = %e\n", thrust::abs (rho));
         
@@ -132,9 +136,12 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter)
                          r, 1,
                          cc(&rho)));
         pp (rho)
-        cn(rho)
+        cn (rho) 
         
-        if (i != 0 && (thrust::abs (rho) < 1e-5*r0Norm || thrust::abs (rhoOld) < 1e-12 || thrust::abs (omega) < 1e-12 || thrust::abs (alpha) < 1e-12))
+        if (i != 0 && (thrust::abs (rho) < 1e-7*r0Norm || 
+                       thrust::abs (rhoOld) < 1e-12 || 
+                       thrust::abs (omega) < 1e-12 || 
+                       thrust::abs (alpha) < 1e-12))
         {
             /// 2.1. r = b - mat * x
             CB (cublasCcopy (cublasHandle_, n_,
@@ -154,11 +161,18 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter)
                          cc(&rho)));
             if (restarts == 0) i = 0;
             restarts++;
+            if (iOld == i-1) consecutiveRestarts++;
+            iOld = i;
+            if (consecutiveRestarts == 10) break;
             
+           
+            printf ("restart!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+            printf ("%e %e %e %e\n", thrust::abs (rho), thrust::abs (rhoOld), thrust::abs (omega), thrust::abs (alpha));
             alpha  = complex_t(1.0f, 0.0f);
             omega  = complex_t(1.0f, 0.0f);
-            printf ("restart!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
         }
+        
+        if (i == 0 && thrust::abs (rho) < 1e-30) break;
         
         
             /// 2.0.0. beta = rho*alpha/(rhoOld*omega))
@@ -184,6 +198,10 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter)
         /// 4. alpha = rho/(r0, v)
         CB (cublasCdotc (cublasHandle_, n_, r0, 1, v, 1, cc(&alpha)));
         alpha = rho/alpha;
+        if ( thrust::abs (alpha) < 1e-12f)
+        {
+            printf ("break on |alpha| = (%e) on %d iterations\n", thrust::abs (alpha), i+1); break;
+        }
         
         pp (alpha)
         cn(alpha)
@@ -207,8 +225,9 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter)
         else
         {
             CB (cublasCdotc (cublasHandle_, n_, t, 1, s, 1, cc(&omega)));
-	        pp (omega) pp (omegaT)
+	        
             omega /= (norm*norm);
+            pp (omega) pp (omegaT)
         }
         cn(omega)
 
@@ -226,9 +245,10 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter)
         omega = -omega;
 
         CB (cublasScnrm2 (cublasHandle_, n_, r, 1, &norm));
-        printf ("LAST NORM %e %e %e\n", norm, r0Norm, thrust::abs(rho));
-        if (norm < 1e-9) {printf ("break on %d iterations\n", i+1); break;}
+        if (norm < 1e-5f) {printf ("break on %d iterations\n", i+1); break;}
     }
     CB(cublasDestroy(cublasHandle_));
 }
+
+
 

@@ -175,45 +175,72 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     cublasHandle_t cublasH = nullptr;*/
     //CB(cublasCreate(&cublasH));
 
-    /*thrust::host_vector <complex_t> A_ (9);
-    A_[0] = complex_t (1.0f, 0.0f);
-    A_[3] = complex_t (1.0f, 0.0f);
-    A_[6] = complex_t (1.0f, 0.0f);
-    A_[1] = complex_t (1.0f, 0.0f);
-    A_[4] = complex_t (-4.0f, 0.0f);
-    A_[7] = complex_t (1.0f, 0.0f);
-    A_[2] = complex_t (1.0f, 0.0f);
-    A_[5] = complex_t (3.0f, 0.0f);
-    A_[8] = complex_t (4.0f, 0.0f);
-    thrust::host_vector <complex_t> b_ (3);
+    /*thrust::host_vector <complex_t> A_ (25);
+    A_[0] = complex_t (7.0f, 0.0f);
+    A_[1] = complex_t (0.0f, 0.0f);
+    A_[2] = complex_t (17.0f, 0.0f);
+    A_[3] = complex_t (8.0f, 0.0f);
+    A_[4] = complex_t (-2.0f, 0.0f);
+    A_[5] = complex_t (9.0f, 0.0f);
+    A_[6] = complex_t (3.0f, 0.0f);
+    A_[7] = complex_t (2.0f, 0.0f);
+    A_[8] = complex_t (0.0f, 0.0f);
+    A_[9] = complex_t (-3.0f, 0.0f);
+    A_[10] = complex_t (-1.0f, 0.0f);
+    A_[11] = complex_t (4.0f, 0.0f);
+    A_[12] = complex_t (1.0f, 0.0f);
+    A_[13] = complex_t (3.0f, 0.0f);
+    A_[14] = complex_t (10.0f, 0.0f);
+    A_[15] = complex_t (15.0f, 0.0f);
+    A_[16] = complex_t (-5.0f, 0.0f);
+    A_[17] = complex_t (-17.0f, 0.0f);
+    A_[18] = complex_t (11.0f, 0.0f);
+    A_[19] = complex_t (-10.0f, 0.0f);
+    A_[20] = complex_t (2.0f, 0.0f);
+    A_[21] = complex_t (-9.0f, 0.0f);
+    A_[22] = complex_t (6.0f, 0.0f);
+    A_[23] = complex_t (5.0f, 0.0f);
+    A_[24] = complex_t (-2.0f, 0.0f);
+    thrust::host_vector <complex_t> b_ (5);
 
     LL
-    b_[0] = complex_t (-5.0f, 0.0f);
-    b_[1] = complex_t (35.0f, 0.0f);
-    b_[2] = complex_t (-18.0f, 0.0f);
+    b_[0] = complex_t (92.0f, 0.0f);
+    b_[1] = complex_t (-47.0f, 0.0f);
+    b_[2] = complex_t (-14.0f, 0.0f);
+    b_[3] = complex_t (86.0f, 0.0f);
+    b_[4] = complex_t (-28.0f, 0.0f);
 
     LL
-    thrust::host_vector <complex_t> x_0 (3);
+    thrust::host_vector <complex_t> x_0 (5);
     x_0[0] = complex_t (0.0f, 0.0f);
     x_0[1] = complex_t (0.0f, 0.0f);
     x_0[2] = complex_t (0.0f, 0.0f);
+    x_0[3] = complex_t (0.0f, 0.0f);
+    x_0[4] = complex_t (0.0f, 0.0f);
     thrust::device_vector <complex_t> x (x_0);
     thrust::device_vector <complex_t> A (A_);
     thrust::device_vector <complex_t> b (b_);
 
     LL
-    BiCGStabCudaSolver solver (3, b.data().get (), A.data().get ());
+    BiCGStabCudaSolver solver (5, b.data().get (), A.data().get ());
 
     LL
-    solver.solve (x.data().get (), 10);
+    int nIter = 0;
+    printf ("enter nIter\n");
+    scanf ("%d", &nIter);
+    solver.solve (x.data().get (), nIter);
     LL
     thrust::host_vector <complex_t> x_ (x);
 
-    printf ("After 10 iterations: \n%f+(%f)i  \n%f+(%f)i  \n%f+(%f)i\n\n",
+    printf ("After %d iterations: \n%f+(%f)i  \n%f+(%f)i  \n%f+(%f)i\n%f+(%f)i  \n%f+(%f)i  \n\n",
+            nIter,
             x_[0].real (), x_[0].imag (),
             x_[1].real (), x_[1].imag (),
-            x_[2].real (), x_[2].imag ());*/
-
+            x_[2].real (), x_[2].imag (),
+            x_[3].real (), x_[3].imag (),
+            x_[4].real (), x_[4].imag ());
+    return;*/
+    
 
 	InputData_t& inputData = *inputDataPtr_;
 
@@ -415,7 +442,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
                    size3));
     //3-6. Bicgstab solution*/
 
-    thrust::host_vector <complex_t> x_0 (size3, complex_t (0.0f, 0.0f));
+    thrust::host_vector <complex_t> x_0 (size3, complex_t (1.0f, 0.0f));
     thrust::device_vector <complex_t> x (x_0);
 
     LL

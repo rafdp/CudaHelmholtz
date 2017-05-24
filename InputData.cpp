@@ -20,11 +20,11 @@ const double DISCRETIZATION_NX = 10,
              DISCRETIZATION_NY = 10,
              DISCRETIZATION_NZ = 10;
 
-const double RECEIVER_X_BEGIN_WORLD = 0,
-             RECEIVER_X_END_WORLD   = 3000,
+const double RECEIVER_X_BEGIN_WORLD = 500,
+             RECEIVER_X_END_WORLD   = 1500,
              RECEIVER_Y_WORLD       = 0,
              RECEIVER_Z_WORLD       = 0,
-             N_RECEIVERS            = 1000;
+             N_RECEIVERS            = 100;
 
 const double FREQUENCY = 5;
 const double SOUND_SPEED = 3000;
