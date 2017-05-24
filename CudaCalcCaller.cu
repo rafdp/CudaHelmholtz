@@ -449,7 +449,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     BiCGStabCudaSolver solver (size3, reductedA_solution.data().get (), deviceAMatrix.data().get ());
 
     LL
-    solver.solve (x.data().get (), 2000);
+    solver.solve (x.data().get ());
 
     CC(cudaDeviceSynchronize());
 

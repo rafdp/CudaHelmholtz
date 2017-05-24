@@ -16,7 +16,7 @@ class BiCGStabCudaSolver
 
     BiCGStabCudaSolver (int n, complex_t* device_b, complex_t* device_A);
 
-    void solve (complex_t* device_workspace, size_t nIter);
+    void solve (complex_t* device_workspace, size_t nIter = 5000, float tol = 1e-6f);
 };
 
 #endif
