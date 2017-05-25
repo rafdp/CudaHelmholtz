@@ -171,8 +171,8 @@ struct BTransformReduceUnary
         point_t rec = *(deviceIndexesPtr + receiverIdx);
         point_t em = *(deviceIndexesPtr + emitterIdx);
         point_t dr = {rec.x - em.x,
-                       rec.y - em.y,
-                       rec.z - em.z};
+                      rec.y - em.y,
+                      rec.z - em.z};
         float len = dr.len ();
         return *(deviceKMatrixPtr+emitterIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (-3.141592f) * len);
 
