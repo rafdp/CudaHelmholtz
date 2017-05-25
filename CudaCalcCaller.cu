@@ -166,12 +166,83 @@ struct IndexFromSequence
     }
 };
 
+struct MatVecFunctor : MatVecFunctorBase
+{
+    cublasHandle_t cublasH;
+    cuComplex* device_A_;
+    size_t size_;
+    
+
+    __host__
+    MatVecFunctor (cublasHandle_t cH,
+                   complex_t * deviceAMatrixPtr,
+                   size_t size) :
+        cublasH   (cH),
+        device_A_ (reinterpret_cast<cuComplex*> (deviceAMatrixPtr)),
+        size_     (size)
+    {}
+
+    __host__
+    void operator()(cuComplex* source, cuComplex* destination) const
+    {
+        cuComplex one = {1.0f, 0.0f};
+        cuComplex zero = {0.0f, 0.0f};
+        cublasCgemv (cublasH, CUBLAS_OP_N, size_, size_, &one,
+                    device_A_, size_, source, 1, &zero, destination, 1);
+    }
+};
+/*
+struct MatVecFunctorFFT : MatVecFunctorBase
+{
+    cublasHandle_t cublasH;
+    cuComplex* device_A_;
+    point_t size_;
+    
+
+    __host__
+    MatVecFunctor (cublasHandle_t cH,
+                   complex_t * deviceAMatrixPtr,
+                   point_t size) :
+        cublasH   (cH),
+        device_A_ (reinterpret_cast<cuComplex*> (deviceAMatrixPtr)),
+        size_     (size)
+    {}
+
+    __host__
+    void operator()(cuComplex* source, cuComplex* destination) const
+    {
+        size_t size3 = size_.x*size_.y*size_.z;
+        size_t size2 = size_.x*size_.y;
+        size_t size1 = size_.x;
+        const int center = 2*size2 + size1;
+        for (int l = 0; l < sizeZ; l++)
+        {
+            thrust::device_vector Q_lq (size2*size2*4, complex_t (0.0f, 0.0f));
+            for (int q = 0; q < sizeZ; q++)
+            {
+                for (int iter2dRec = 0; iter2dRec < size2; iter2dRec ++)
+                {
+                    CB (cublasCcopy (cublasH, size1, Q_lq + center + iter2dRec*size1, 1, 
+                                    device_A_ + (iter2dRec+l)*size3 + q*size2, 1)); // ++
+                    
+                    CB (cublasCcopy (cublasH, size1, Q_lq + center + (iter2dRec+1)*size1, -1, 
+                                    device_A_ + (iter2dRec+l)*size3 + q*size2, 1)); // -+
+                    
+                    CB (cublasCcopy (cublasH, size1, Q_lq + center + (size2 - iter2dRec - 1)*size1, +1, 
+                                    device_A_ + (iter2dRec+l)*size3 + q*size2, 1)); // +-
+                }
+            
+            }
+        }
+    }
+};*/
+
+
 extern "C"
 void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<float> >* retData)
 {
     /*cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
-    LL
-
+    
     cublasHandle_t cublasH = nullptr;*/
     //CB(cublasCreate(&cublasH));
 
@@ -203,14 +274,12 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     A_[24] = complex_t (-2.0f, 0.0f);
     thrust::host_vector <complex_t> b_ (5);
 
-    LL
     b_[0] = complex_t (92.0f, 0.0f);
     b_[1] = complex_t (-47.0f, 0.0f);
     b_[2] = complex_t (-14.0f, 0.0f);
     b_[3] = complex_t (86.0f, 0.0f);
     b_[4] = complex_t (-28.0f, 0.0f);
 
-    LL
     thrust::host_vector <complex_t> x_0 (5);
     x_0[0] = complex_t (0.0f, 0.0f);
     x_0[1] = complex_t (0.0f, 0.0f);
@@ -221,15 +290,12 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     thrust::device_vector <complex_t> A (A_);
     thrust::device_vector <complex_t> b (b_);
 
-    LL
     BiCGStabCudaSolver solver (5, b.data().get (), A.data().get ());
 
-    LL
     int nIter = 0;
     printf ("enter nIter\n");
     scanf ("%d", &nIter);
     solver.solve (x.data().get (), nIter);
-    LL
     thrust::host_vector <complex_t> x_ (x);
 
     printf ("After %d iterations: \n%f+(%f)i  \n%f+(%f)i  \n%f+(%f)i\n%f+(%f)i  \n%f+(%f)i  \n\n",
@@ -296,25 +362,19 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     thrust::device_vector<complex_t > deviceKMatrix (hostDs2Matrix);
 
-    LL
-
+    
     thrust::device_vector<point_t > indexes (size3);
-    LL
-
+    
     thrust::tabulate (indexes.begin(), indexes.end(), IndexFromSequence ());
-    LL
-
+    
     thrust::transform (deviceKMatrix.begin (), deviceKMatrix.end (), indexes.begin (), deviceKMatrix.begin (), ModifyKMatrix ());
-    LL
-
+    
     thrust::device_vector<complex_t > deviceAMatrix (size3*size3);
-    LL
-
+    
     SetAMatrix sMatrixSetter (deviceKMatrix.data ().get (), indexes.data ().get ());
 
     thrust::tabulate (deviceAMatrix.begin (), deviceAMatrix.end (), sMatrixSetter);
 
-    LL
 
     /// ////////////////////////////////////
     /// solution part (linear system, not fft)
@@ -328,8 +388,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     cusolverDnHandle_t cudenseH = nullptr;
     CS(cusolverDnCreate(&cudenseH));
-    LL
-
+    
     /// 2. Setting up data
 
     thrust::device_vector<complex_t> ones (size3, complex_t (-1.0f, 0.0f)); // is it -1 or -1 - i ?
@@ -366,7 +425,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     ModifyAMatrix modificatorA (deviceAMatrix.data ().get (), indexes.data ().get ());
     thrust::for_each (seq.begin(), seq.end(), modificatorA);
 
-    LL
 
     /// 3. Querying workspace for cusolverDn
 
@@ -381,7 +439,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     thrust::device_vector<complex_t> workspace (workspaceSize);
 
-    LL
 
     /// 4. Computing QR decomposition
 
@@ -389,7 +446,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     CC(cudaMalloc ((void**)&devInfo, sizeof(int)));
 
-    LL
 
     CS(cusolverDnCgeqrf(cudenseH,
                         size3,
@@ -402,7 +458,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
                         devInfo));
     CC(cudaDeviceSynchronize());
 
-    LL
 
     /// 5. compute Q^H*B
     CS(cusolverDnCunmqr(cudenseH,
@@ -425,8 +480,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     CC(cudaDeviceSynchronize());
 
-    LL
-
+    
     /// 6. solve Rx = Q^H*B
     CB(cublasCtrsm(cublasH,
                    CUBLAS_SIDE_LEFT,
@@ -445,11 +499,10 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     thrust::host_vector <complex_t> x_0 (size3, complex_t (1.0f, 0.0f));
     thrust::device_vector <complex_t> x (x_0);
 
-    LL
-    BiCGStabCudaSolver solver (size3, reductedA_solution.data().get (), deviceAMatrix.data().get ());
+    MatVecFunctor matvecf (cublasH, deviceAMatrix.data().get (), size3);
+    BiCGStabCudaSolver solver (size3, reductedA_solution.data().get (), x.data().get ());
 
-    LL
-    solver.solve (x.data().get ());
+    solver.solve (&matvecf);
 
     CC(cudaDeviceSynchronize());
 
@@ -482,7 +535,8 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     CB(cublasDestroy (cublasH));
     CC(cudaFree (deviceInputData));
     CC(cudaFree (devInfo));
-    LL
+    
+    printf ("Cuda part ended\n");
 
 
 }

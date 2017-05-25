@@ -3,16 +3,17 @@
 #include "CudaCalc.h"
 
 
-
-BiCGStabCudaSolver::BiCGStabCudaSolver (int n, complex_t* device_b, complex_t* device_A) :
+BiCGStabCudaSolver::BiCGStabCudaSolver (int n, 
+                                        complex_t* device_b, 
+                                        complex_t* device_workspace) :
     n_ (n),
     device_b_ (device_b),
-    device_A_ (device_A)
+    device_x_ (device_workspace)
 {
-    if (device_A_ == nullptr)
+    if (device_x_ == nullptr)
     {
         printf ("----------------------------------------------------------\n");
-        printf ("    ERROR: BiCGStabCudaSolver (...) device_A = nullptr\n");
+        printf ("    ERROR: BiCGStabCudaSolver (...) device_x = nullptr\n");
         printf ("----------------------------------------------------------\n");
         exit (1);
     }
@@ -35,16 +36,9 @@ BiCGStabCudaSolver::BiCGStabCudaSolver (int n, complex_t* device_b, complex_t* d
 
 }
 
-void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter, float tol)
+void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float tol)
 {
     cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
-    if (device_workspace == nullptr)
-    {
-        printf ("----------------------------------------------------------\n");
-        printf ("    ERROR: solve: device_workspace = nullptr\n");
-        printf ("----------------------------------------------------------\n");
-        exit (1);
-    }
     if (!nIter)
     {
         printf ("----------------------------------------------------------\n");
@@ -73,39 +67,37 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter, float
 
     #define cc(x) (reinterpret_cast <cuComplex*> (x))
     
-    cuComplex* x = cc(device_workspace);
+    cuComplex* x = cc(device_x_);
     cuComplex* b = cc(device_b_);
-    cuComplex* A = cc(device_A_);
 
     /// Initializing vectors:
-    thrust::device_vector<complex_t> r_ (device_b_, device_b_ + n_);
-    LL
-    cuComplex* r = cc(r_.data().get());
-    CB (cublasCgemv(cublasHandle_, CUBLAS_OP_N, n_, n_, cc(&minusOne), 
-                    A, n_, x, 1, cc(&one), r, 1));
+    thrust::device_vector<complex_t> r_ (n_, complex_t(0.0f, 0.0f));
     
+    cuComplex* r = cc(r_.data().get());
+    (*matVec) (x, r);
+    CB (cublasCscal(cublasHandle_, n_, cc(&minusOne), r, 1));
+    CB (cublasCaxpy(cublasHandle_, n_, cc(&one), b, 1, r, 1));
 
     thrust::device_vector<complex_t> r0_ (r_);
-    LL
+    
     cuComplex* r0 = cc(r0_.data().get());
 
     thrust::device_vector<complex_t> v_ (n_, complex_t(0.0f, 0.0f));
-    LL
+    
     cuComplex* v = cc(v_.data().get());
 
     thrust::device_vector<complex_t> p_ (v_);
-    LL
+    
     cuComplex* p = cc(p_.data().get());
 
     thrust::device_vector<complex_t> t_ (v_);
-    LL
+    
     cuComplex* t = cc(t_.data().get());
 
     thrust::device_vector<complex_t> s_ (v_);
-    LL
+    
     cuComplex* s = cc(s_.data().get());
 
-    LL
     #define cn(x) if (x.real() != x.real () || x.imag() != x.imag ()) { break;}
     
     int restarts = 0;
@@ -136,15 +128,14 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter, float
                        thrust::abs (alpha) < zeroNorm))
         {
             /// 2.1. r = b - mat * x
-            CB (cublasCcopy (cublasHandle_, n_,
-                         b, 1,
-                         r, 1));
-            CB (cublasCgemv(cublasHandle_, CUBLAS_OP_N, n_, n_, cc(&minusOne),
-                        A, n_, x, 1, cc(&one), r, 1));
+            (*matVec) (x, r);
+            CB (cublasCscal(cublasHandle_, n_, cc(&minusOne), r, 1));
+            CB (cublasCaxpy(cublasHandle_, n_, cc(&one), b, 1, r, 1));
+            
             CB (cublasCcopy (cublasHandle_, n_,
                          r, 1,
                          r0, 1));
-            
+    
             CB (cublasScnrm2 (cublasHandle_, n_, r0, 1, &r0Norm));
             
             CB (cublasCdotc (cublasHandle_, n_,
@@ -181,9 +172,9 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter, float
 
 
         /// 3. v = A*p
-        CB (cublasCgemv(cublasHandle_, CUBLAS_OP_N, n_, n_, cc(&one),
-                        A, n_, p, 1, cc(&zero), v, 1));
-
+        
+        (*matVec) (p, v);
+        
         /// 4. alpha = rho/(r0, v)
         CB (cublasCdotc (cublasHandle_, n_, r0, 1, v, 1, cc(&alpha)));
         alpha = rho/alpha;
@@ -199,8 +190,8 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter, float
         alpha = -alpha;
 
         /// 5. t = A*s
-        CB (cublasCgemv(cublasHandle_, CUBLAS_OP_N, n_, n_, cc(&one),
-                        A, n_, s, 1, cc(&zero), t, 1));
+        
+        (*matVec) (s, t);
         
         /// 6. omega = (t, s)/(t, t)
         
@@ -228,6 +219,7 @@ void BiCGStabCudaSolver::solve (complex_t* device_workspace, size_t nIter, float
         if (norm < tolerance * bNorm) break;
     }
     CB(cublasDestroy(cublasHandle_));
+#undef cn
 }
 
 
