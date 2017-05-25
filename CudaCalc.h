@@ -10,6 +10,7 @@
 #include <thrust/fill.h>
 #include <thrust/replace.h>
 #include <thrust/transform_reduce.h>
+#include <thrust/execution_policy.h>
 #include <thrust/memory.h>
 #include <thrust/complex.h>
 #include <thrust/device_new.h>
@@ -133,14 +134,59 @@ struct InputDataOnDevice
     float                  w2h3_;
 };
 
-
-__global__ void DevicePrintData (InputDataOnDevice * inputDataPtr);
-
 const char * cublasGetErrorString (cublasStatus_t error);
 const char * cusolverGetErrorString (cusolverStatus_t error);
 
 typedef thrust::complex<float> complex_t;
 typedef Point3DDevice_t<float> point_t;
+
+__global__ void DevicePrintData (InputDataOnDevice * inputDataPtr);
+__global__ void ReduceEmittersToReceiver (InputDataOnDevice * inputDataPtr,
+                                          complex_t* deviceKMatrixPtr,
+                                          complex_t* reductedA_solution,
+                                          int* sequence,
+                                          point_t* indexesPtr);
+struct BTransformReduceUnary
+{
+    complex_t * deviceKMatrixPtr;
+    point_t * deviceIndexesPtr;
+    int receiverIdx;
+    InputDataOnDevice * inputDataPtr;
+    __device__
+    BTransformReduceUnary (complex_t * deviceKMatrixPtr_, 
+                           point_t * deviceIndexesPtr_, 
+                           int receiverIdx_,
+                           InputDataOnDevice* inputDataPtr_) :
+        deviceKMatrixPtr (deviceKMatrixPtr_),
+        deviceIndexesPtr (deviceIndexesPtr_),
+        receiverIdx (receiverIdx_),
+        inputDataPtr (inputDataPtr_)
+    {}
+    __device__
+    complex_t operator() (int emitterIdx)
+    {
+        if (receiverIdx == emitterIdx)
+            return complex_t (0.0f, 0.0f);
+        
+        point_t rec = *(deviceIndexesPtr + receiverIdx);
+        point_t em = *(deviceIndexesPtr + emitterIdx);
+        point_t dr = {rec.x - em.x,
+                       rec.y - em.y,
+                       rec.z - em.z};
+        float len = dr.len ();
+        return *(deviceKMatrixPtr+emitterIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (-3.141592f) * len);
+
+    }
+};
+
+struct ComplexAddition
+{
+    __host__ __device__
+	complex_t operator()(const complex_t& a, const complex_t& b) const
+	{
+		return a + b;
+	}
+};
 
 #define CC(op) \
 cudaStat = (op); \

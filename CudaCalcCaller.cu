@@ -42,8 +42,8 @@ __device__
         point_t pos1 = *(deviceIndexesPtr + idx1);
         point_t pos2 = *(deviceIndexesPtr + idx2);
         point_t dr = {pos1.x-pos2.x,
-                                     pos1.y-pos2.y,
-                                     pos1.z-pos2.z};
+                      pos1.y-pos2.y,
+                      pos1.z-pos2.z};
         float len = dr.len ();
 
 //--------------------------------------------------------------------+
@@ -97,7 +97,6 @@ __device__
     }
 };
 
-
 struct QLReduction
 {
 	const point_t receiver;
@@ -132,15 +131,6 @@ struct QLReduction
 
 		return (*(deviceKMatrixPtr + idx)) * (complex_t (1.0f, 0.0f) + *(deviceLambdaPtr + idx)) * //is it 1 or 1+i?
                 thrust::exp(inputDataPtr -> uiCoeff_ * len) / (4 * 3.141592f * len);
-	}
-};
-
-struct ComplexAddition
-{
-    __host__ __device__
-	complex_t operator()(const complex_t& a, const complex_t& b) const
-	{
-		return a + b;
 	}
 };
 
@@ -241,78 +231,11 @@ struct MatVecFunctorFFT : MatVecFunctorBase
 extern "C"
 void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<float> >* retData)
 {
-    /*cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
-    
-    cublasHandle_t cublasH = nullptr;*/
-    //CB(cublasCreate(&cublasH));
+    InputData_t& inputData = *inputDataPtr_;
 
-    /*thrust::host_vector <complex_t> A_ (25);
-    A_[0] = complex_t (7.0f, 0.0f);
-    A_[1] = complex_t (0.0f, 0.0f);
-    A_[2] = complex_t (17.0f, 0.0f);
-    A_[3] = complex_t (8.0f, 0.0f);
-    A_[4] = complex_t (-2.0f, 0.0f);
-    A_[5] = complex_t (9.0f, 0.0f);
-    A_[6] = complex_t (3.0f, 0.0f);
-    A_[7] = complex_t (2.0f, 0.0f);
-    A_[8] = complex_t (0.0f, 0.0f);
-    A_[9] = complex_t (-3.0f, 0.0f);
-    A_[10] = complex_t (-1.0f, 0.0f);
-    A_[11] = complex_t (4.0f, 0.0f);
-    A_[12] = complex_t (1.0f, 0.0f);
-    A_[13] = complex_t (3.0f, 0.0f);
-    A_[14] = complex_t (10.0f, 0.0f);
-    A_[15] = complex_t (15.0f, 0.0f);
-    A_[16] = complex_t (-5.0f, 0.0f);
-    A_[17] = complex_t (-17.0f, 0.0f);
-    A_[18] = complex_t (11.0f, 0.0f);
-    A_[19] = complex_t (-10.0f, 0.0f);
-    A_[20] = complex_t (2.0f, 0.0f);
-    A_[21] = complex_t (-9.0f, 0.0f);
-    A_[22] = complex_t (6.0f, 0.0f);
-    A_[23] = complex_t (5.0f, 0.0f);
-    A_[24] = complex_t (-2.0f, 0.0f);
-    thrust::host_vector <complex_t> b_ (5);
+    InputDataOnDevice* deviceInputData = nullptr;
 
-    b_[0] = complex_t (92.0f, 0.0f);
-    b_[1] = complex_t (-47.0f, 0.0f);
-    b_[2] = complex_t (-14.0f, 0.0f);
-    b_[3] = complex_t (86.0f, 0.0f);
-    b_[4] = complex_t (-28.0f, 0.0f);
-
-    thrust::host_vector <complex_t> x_0 (5);
-    x_0[0] = complex_t (0.0f, 0.0f);
-    x_0[1] = complex_t (0.0f, 0.0f);
-    x_0[2] = complex_t (0.0f, 0.0f);
-    x_0[3] = complex_t (0.0f, 0.0f);
-    x_0[4] = complex_t (0.0f, 0.0f);
-    thrust::device_vector <complex_t> x (x_0);
-    thrust::device_vector <complex_t> A (A_);
-    thrust::device_vector <complex_t> b (b_);
-
-    BiCGStabCudaSolver solver (5, b.data().get (), A.data().get ());
-
-    int nIter = 0;
-    printf ("enter nIter\n");
-    scanf ("%d", &nIter);
-    solver.solve (x.data().get (), nIter);
-    thrust::host_vector <complex_t> x_ (x);
-
-    printf ("After %d iterations: \n%f+(%f)i  \n%f+(%f)i  \n%f+(%f)i\n%f+(%f)i  \n%f+(%f)i  \n\n",
-            nIter,
-            x_[0].real (), x_[0].imag (),
-            x_[1].real (), x_[1].imag (),
-            x_[2].real (), x_[2].imag (),
-            x_[3].real (), x_[3].imag (),
-            x_[4].real (), x_[4].imag ());
-    return;*/
-    
-
-	InputData_t& inputData = *inputDataPtr_;
-
-	InputDataOnDevice* deviceInputData = nullptr;
-
-	cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
+    cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
     cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
     cudaError_t cudaStat = cudaSuccess;
     int* devInfo = nullptr;
@@ -361,7 +284,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     }
 
     thrust::device_vector<complex_t > deviceKMatrix (hostDs2Matrix);
-
     
     thrust::device_vector<point_t > indexes (size3);
     
@@ -403,13 +325,26 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     }*/
 
     /// reductedA_solution = alpha*A*ones+beta*reductedA_solution = A*ones
-    CB(cublasCgemv (cublasH, CUBLAS_OP_N, size3, size3,
+    /*CB(cublasCgemv (cublasH, CUBLAS_OP_N, size3, size3,
                     reinterpret_cast <cuComplex*> (&alpha),
                     reinterpret_cast <cuComplex*> (deviceAMatrix.data ().get ()),
                     size3,
                     reinterpret_cast <cuComplex*> (ones.data ().get ()), 1,
                     reinterpret_cast <cuComplex*> (&beta),
-                    reinterpret_cast <cuComplex*> (reductedA_solution.data ().get ()), 1));
+                    reinterpret_cast <cuComplex*> (reductedA_solution.data ().get ()), 1));*/
+    
+    thrust::device_vector<int> seq (size3);
+    thrust::sequence (seq.begin (), seq.end ());
+    
+    ReduceEmittersToReceiver 
+    <<<inputData.discretizationSize_[0]*
+       inputData.discretizationSize_[1], 
+       inputData.discretizationSize_[2]>>> 
+        (deviceInputData,
+         deviceKMatrix.data ().get (),
+         reductedA_solution.data ().get (),
+         seq.data().get (),
+         indexes.data ().get ());
 
 
 
@@ -420,8 +355,6 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     ///using strategy2
 
-    thrust::device_vector<int> seq (size3);
-    thrust::sequence (seq.begin (), seq.end ());
     ModifyAMatrix modificatorA (deviceAMatrix.data ().get (), indexes.data ().get ());
     thrust::for_each (seq.begin(), seq.end(), modificatorA);
 

@@ -50,6 +50,27 @@ __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr)
     printf ("--------------------------------------------------------------\n");
 }
 
+__global__ void ReduceEmittersToReceiver (InputDataOnDevice * inputDataPtr,
+                                          complex_t* deviceKMatrixPtr,
+                                          complex_t* reductedA_solution,
+                                          int* sequence,
+                                          point_t* indexesPtr)
+{
+    int receiver = blockIdx.x * blockDim.x + threadIdx.x;
+    BTransformReduceUnary tempFunctor (deviceKMatrixPtr,
+                                       indexesPtr, 
+                                       receiver,
+                                       inputDataPtr);
+    ComplexAddition complexSum;
+    *(reductedA_solution + receiver) = 
+    thrust::transform_reduce (thrust::device, 
+                              sequence,
+                              sequence + inputDataPtr->size3_,
+                              tempFunctor,
+                              complex_t (0.0f, 0.0f),
+                              complexSum);
+}
+
 const char * cublasGetErrorString (cublasStatus_t error)
 {
     switch (error)
@@ -105,45 +126,4 @@ const char * cusolverGetErrorString (cusolverStatus_t error)
     return "<unknown>";
 }
 
-/*
-template <typename T>
-__host__ __device__
-float Point3DDevice_t<T>::len ()
-{
-    return sqrtf (x*x + y*y + z*z);
-}
-
-template <typename T>
-__host__ __device__
-Point3DDevice_t<T>::Point3DDevice_t (const Point3D_t& p) :
-    x (p.x),
-    y (p.y),
-    z (p.z)
-{}
-
-template <typename T>
-__host__ __device__
-Point3DDevice_t<T>::Point3DDevice_t () :
-    x (0.0f),
-    y (0.0f),
-    z (0.0f)
-{}
-
-template <typename T>
-template <typename T1>
-__host__ __device__
-Point3DDevice_t<T>::Point3DDevice_t (T1 tx, T1 ty, T1 tz) :
-    x (tx),
-    y (ty),
-    z (tz)
-{}
-
-template <typename T>
-__host__ __device__
-Point3DDevice_t<T>::Point3DDevice_t (T* init) :
-    x (init[0]),
-    y (init[1]),
-    z (init[2])
-{}
-*/
 //=================================================================
