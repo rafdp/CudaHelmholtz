@@ -187,26 +187,26 @@ struct FillRadialQ_lq
     complex_t* deviceKMatrixPtr;
     point_t * deviceIndexesPtr;
     complex_t* Q_lq;
-    point_t size;
+    pointInt_t size;
     int l;
     int q;
     
     __host__
     FillRadialQ_lq (complex_t * deviceKMatrixPtr_,
-                   complex_t * deviceIndexesPtr_,
-                   complex_t * Q_lq_,
-                   point_t size_,
-                   int l_,
-                   int q_) :
+                    point_t * deviceIndexesPtr_,
+                    complex_t * Q_lq_,
+                    pointInt_t size_,
+                    int l_,
+                    int q_) :
         deviceKMatrixPtr (deviceKMatrixPtr_),
         deviceIndexesPtr (deviceIndexesPtr_),
-        Q_lq (Q_lq_),
-        size     (size_),
-        l (l_),
-        q (q_)
+        Q_lq             (Q_lq_),
+        size             (size_),
+        l                (l_),
+        q                (q_)
     {}
 
-    __host__
+    __device__
     void operator()(int idx) const
     {
         int idxx = idx % (2*size.x);
@@ -220,10 +220,10 @@ struct FillRadialQ_lq
         int recIdx = q*size.x*size.y + idxx * size.x + idxy;
         if (emIdx == recIdx)
         {
-            point_t pos = *(deviceIndexesPtr + idx);
+            point_t pos = *(deviceIndexesPtr + emIdx);
             point_t dr = {inputDataPtr->sourcePos_.x - pos.x,
-                        inputDataPtr->sourcePos_.y - pos.y,
-                        inputDataPtr->sourcePos_.z - pos.z};
+                          inputDataPtr->sourcePos_.y - pos.y,
+                          inputDataPtr->sourcePos_.z - pos.z};
             float len = dr.len ();
             *(Q_lq + idx) = -thrust::exp (inputDataPtr->uiCoeff_ * len) / 
                             (4 * 3.141592f * len);
@@ -246,7 +246,7 @@ struct FillRadialQ_lq
                       
         float len = dr.len ();
         
-        *(Q_lq + idx) = *(deviceKMatrixPtr+emitterIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (3.141592f) * len);
+        *(Q_lq + idx) = *(deviceKMatrixPtr+emIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (3.141592f) * len);
     }
 };
 
@@ -254,13 +254,13 @@ struct FillV_q
 {
     complex_t* source;
     complex_t* V_q;
-    point_t size;
+    pointInt_t size;
     int q;
     
     __host__
     FillV_q (complex_t * source_,
              complex_t * V_q_,
-             point_t size_,
+             pointInt_t size_,
              int q_) :
         source (source_),
         V_q (V_q_),
@@ -268,33 +268,80 @@ struct FillV_q
         q (q_)
     {}
 
+    __device__
+    void operator()(int idx) const
+    {
+        int idxx = idx % (2*size.x);
+        int idxy = idx / (2*size.x);
+        
+        *(V_q + (size.x*size.y)*2+size.x+size.x*2*idxy + idxx) = 
+        *(source + q*size.x*size.y + idxy * size.x + idxx);
+    }
+};
+
+struct ElementwiseMultiplier_SumFFT
+{
+    complex_t* V_q;
+    complex_t* Q_lq;
+    complex_t* Acc;
     __host__
+    ElementwiseMultiplier_SumFFT (complex_t * Q_lq_,
+                                  complex_t * V_q_,
+                                  complex_t* Acc_) :
+        Q_lq (Q_lq_),
+        V_q (V_q_),
+        Acc (Acc_)
+    {}
+
+    __device__
+    void operator()(int idx) const
+    {
+        *(Acc + idx) += *(Q_lq + idx) * *(V_q + idx);
+    }
+};
+
+struct FillS_l
+{
+    complex_t* destination;
+    complex_t* acc;
+    pointInt_t size;
+    int l;
+    
+    __host__
+    FillS_l (complex_t * destination_,
+             complex_t * acc_,
+             pointInt_t size_,
+             int l_) :
+        destination (destination_),
+        acc (acc_),
+        size     (size_),
+        l (l_)
+    {}
+
+    __device__
     void operator()(int idx) const
     {
         int idxx = idx % (size.x);
         int idxy = idx / (size.x);
         
-        *(V_q + size.x*size.y*2+size.x+size.x*2*idxy + idxx) = 
-        *(source + q*size.x*size.y + idxy * size.x + idxx);
+        *(destination + l*size.x*size.y + idxy*size.x + idxx) = 
+        *(acc + size.x*size.y*2+size.x+size.x*2*idxy + idxx);
     }
 };
 
 
 struct MatVecFunctorFFT : MatVecFunctorBase
 {
-    cublasHandle_t cublasH;
     complex_t* deviceKMatrixPtr;
     point_t * deviceIndexesPtr;
     int* seq;
-    point_t size;
+    pointInt_t size;
     
     __host__
-    MatVecFunctorFFT (cublasHandle_t cH,
-                      complex_t * deviceKMatrixPtr_,
+    MatVecFunctorFFT (complex_t * deviceKMatrixPtr_,
                       point_t *   deviceIndexesPtr_,
                       int* seq_,
-                      point_t size_) :
-        cublasH   (cH),
+                      pointInt_t size_) :
         deviceKMatrixPtr (deviceKMatrixPtr_),
         deviceIndexesPtr (deviceIndexesPtr_),
         seq      (seq_),
@@ -304,41 +351,62 @@ struct MatVecFunctorFFT : MatVecFunctorBase
     __host__
     void operator()(cuComplex* source, cuComplex* destination) const
     {
+        LL
         const int size2 = size.x*size.y;
-        const int center = 2*size2 + size.x;
         thrust::device_vector <complex_t> Q_lq (size2*size2*4,
                                                 complex_t(0.0f, 0.0f));
         
-        thrust::device_vector <complex_t> V_q (size2*size2*4,
-                                               complex_t(0.0f, 0.0f));
+        thrust::device_vector <complex_t> V_q (Q_lq);
+        
+        thrust::device_vector <complex_t> acc (Q_lq);
+        
+        LL
+        cufftHandle plan;
+        cufftCreate(&plan);
+        cufftPlan2d(&plan, 2*size.x, 2*size.y, CUFFT_C2C);
+        LL
+        printf ("About to loop over l\n");
         for (int l = 0; l < size.z; l++)
         {
+        printf ("About to loop over q\n");
             for (int q = 0; q < size.z; q++)
-            {
-                
+            {        
+                printf ("l = %d q = %d\n", l, q);
                 FillRadialQ_lq fr (deviceKMatrixPtr,
                                    deviceIndexesPtr,
-                                   Q_lq_.data ().get (),
+                                   Q_lq.data ().get (),
                                    size, l, q);
-                thrust::for_each (seq, seq + 4*size2, fr);
+                LL 
+                thrust::for_each (thrust::device, seq, seq + 4*size2, fr);
+                LL
+                cufftExecC2C(plan, 
+                             reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()),
+                             reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()), CUFFT_FORWARD);
+                LL
                 
-                FillV_q fv (source,
-                            V_q_.data ().get (),
+                FillV_q fv (reinterpret_cast<complex_t*> (source),
+                            V_q.data ().get (),
                             size, q);
-                thrust::for_each (seq, seq + size2, fv);
-                
-                // FFT for Q_lq and V_q
-                
-                //elementwise multiplication
-                
-                //sum
+                thrust::for_each (thrust::device, seq, seq + size2, fv);
+                LL
+                cufftExecC2C(plan, 
+                             reinterpret_cast<cufftComplex*> (V_q.data ().get ()),
+                             reinterpret_cast<cufftComplex*> (V_q.data ().get ()), CUFFT_FORWARD);
+                LL
+                ElementwiseMultiplier_SumFFT ems (Q_lq.data ().get (), 
+                                                  V_q.data ().get (), 
+                                                  acc.data ().get ());
+                thrust::for_each (thrust::device, seq, seq + size2*4, fv);
                 
             }
             
+            cufftExecC2C(plan, 
+                         reinterpret_cast<cufftComplex*> (acc.data ().get ()),
+                         reinterpret_cast<cufftComplex*> (acc.data ().get ()),
+                         CUFFT_INVERSE);
             
-            //FFT^-1
-            
-            //export result to destination
+            FillS_l fs (reinterpret_cast<complex_t*> (destination),
+                        acc.data().get(), size, l);
         }
     }
 };
@@ -532,8 +600,35 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     thrust::host_vector <complex_t> x_0 (size3, complex_t (1.0f, 0.0f));
     thrust::device_vector <complex_t> x (x_0);
+    thrust::device_vector <complex_t> t0 (x_0);
+    thrust::device_vector <complex_t> t1 (x_0);
 
-    MatVecFunctor matvecf (cublasH, deviceAMatrix.data().get (), size3);
+    MatVecFunctor matvecf_ (cublasH, deviceAMatrix.data().get (), size3);
+    
+    
+    
+    MatVecFunctorFFT matvecf (deviceKMatrix.data().get (), indexes.data (). get (), seq.data ().get (), inputData.discretizationSize_);
+    
+    alpha = complex_t (-1.0f, 0.0f);
+    
+    matvecf (reinterpret_cast<cuComplex*> (x.data().get ()),
+             reinterpret_cast<cuComplex*> (t1.data().get ()));
+    
+    matvecf_ (reinterpret_cast<cuComplex*> (x.data().get ()),
+              reinterpret_cast<cuComplex*> (t0.data().get ()));
+    
+    CB (cublasCaxpy(cublasH, size3, reinterpret_cast<cuComplex*> (&alpha), 
+                    reinterpret_cast<cuComplex*> (t1.data().get ()), 1, 
+                    reinterpret_cast<cuComplex*> (t0.data().get ()), 1));
+    
+    float norm = 0.0f;
+    
+    CB (cublasScnrm2 (cublasH, size3, reinterpret_cast<cuComplex*> (t0.data().get ()), 1, &norm));
+    
+    printf ("norm = %e\n", norm);
+    
+    return;
+    
     BiCGStabCudaSolver solver (size3, reductedA_solution.data().get (), x.data().get ());
 
     solver.solve (&matvecf);

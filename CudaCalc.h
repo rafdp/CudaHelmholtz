@@ -18,6 +18,7 @@
 #include <thrust/functional.h>
 #include <cublas_v2.h>
 #include <cusolverDn.h>
+#include <cufft.h>
 #endif
 
 #include "includes.h"
@@ -139,6 +140,7 @@ const char * cusolverGetErrorString (cusolverStatus_t error);
 
 typedef thrust::complex<float> complex_t;
 typedef Point3DDevice_t<float> point_t;
+typedef Point3DDevice_t<int> pointInt_t;
 
 __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr);
 __global__ void ReduceEmittersToReceiver (InputDataOnDevice * inputDataPtr,
