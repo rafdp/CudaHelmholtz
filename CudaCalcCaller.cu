@@ -209,8 +209,8 @@ struct FillRadialQ_lq
     __device__
     void operator()(int idx) const
     {
-        int idxx = idx % (2*size.x);
-        int idxy = idx / (2*size.x);
+        int idxx = idx % (2*size.x-1);
+        int idxy = idx / (2*size.x-1);
         if (idxx >= size.x) idxx -= size.x;
         else idxx = size.x - idxx - 1;
         if (idxy >= size.y) idxy -= size.y;
@@ -227,26 +227,6 @@ struct FillRadialQ_lq
             float len = dr.len ();
             *(Q_lq + idx) = -thrust::exp (inputDataPtr->uiCoeff_ * len) / 
                             (4 * 3.141592f * len);
-            return;
-        }
-        
-        point_t rec = *(deviceIndexesPtr + 
-                        q*size.x*size.y + 
-                        idxx * size.x + 
-                        idxy);
-        
-        point_t em = *(deviceIndexesPtr + 
-                       l*size.x*size.y + 
-                       idxy * size.x + 
-                       idxx);
-        
-        point_t dr = {rec.x - em.x,
-                      rec.y - em.y,
-                      rec.z - em.z};
-                      
-        float len = dr.len ();
-        
-        *(Q_lq + idx) = *(deviceKMatrixPtr+emIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (3.141592f) * len);
     }
 };
 
@@ -363,7 +343,7 @@ struct MatVecFunctorFFT : MatVecFunctorBase
         LL
         cufftHandle plan;
         cufftCreate(&plan);
-        cufftPlan2d(&plan, 2*size.x, 2*size.y, CUFFT_C2C);
+        cufftPlan2d(&plan, 2*size2, 2*size2, CUFFT_C2C);
         LL
         printf ("About to loop over l\n");
         for (int l = 0; l < size.z; l++)
@@ -377,7 +357,7 @@ struct MatVecFunctorFFT : MatVecFunctorBase
                                    Q_lq.data ().get (),
                                    size, l, q);
                 LL 
-                thrust::for_each (thrust::device, seq, seq + 4*size2, fr);
+                thrust::for_each (thrust::device, seq, seq + size2*size2*4, fr);
                 LL
                 cufftExecC2C(plan, 
                              reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()),
@@ -387,7 +367,7 @@ struct MatVecFunctorFFT : MatVecFunctorBase
                 FillV_q fv (reinterpret_cast<complex_t*> (source),
                             V_q.data ().get (),
                             size, q);
-                thrust::for_each (thrust::device, seq, seq + size2, fv);
+                thrust::for_each (thrust::device, seq, seq + size2*size2, fv);
                 LL
                 cufftExecC2C(plan, 
                              reinterpret_cast<cufftComplex*> (V_q.data ().get ()),
@@ -396,7 +376,7 @@ struct MatVecFunctorFFT : MatVecFunctorBase
                 ElementwiseMultiplier_SumFFT ems (Q_lq.data ().get (), 
                                                   V_q.data ().get (), 
                                                   acc.data ().get ());
-                thrust::for_each (thrust::device, seq, seq + size2*4, fv);
+                thrust::for_each (thrust::device, seq, seq + size2*size2*4, fv);
                 
             }
             
@@ -408,6 +388,7 @@ struct MatVecFunctorFFT : MatVecFunctorBase
             FillS_l fs (reinterpret_cast<complex_t*> (destination),
                         acc.data().get(), size, l);
         }
+        cufftDestroy(plan);
     }
 };
 
@@ -502,7 +483,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     complex_t alpha (1.0f, 0.0f);
     complex_t beta (0.0f, 0.0f);
     
-    thrust::device_vector<int> seq (size3);
+    thrust::device_vector<int> seq (size3 * size3);
     thrust::sequence (seq.begin (), seq.end ());
     
     ReduceEmittersToReceiver 
