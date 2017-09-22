@@ -2,6 +2,15 @@
 //=================================================================
 
 #include "CudaCalc.h"
+void CudaPrintMemory ()
+{
+    size_t free_byte ;
+    size_t total_byte ;
+
+    cudaMemGetInfo( &free_byte, &total_byte );
+    printf ("MEMORY: free %lu mb, total %lu mb\n", free_byte >> 20, total_byte >> 20);
+}
+
 
 __device__ InputDataOnDevice * inputDataPtr;
 
@@ -297,8 +306,9 @@ struct FillRadialQ_lq
         *(Q_lq + (2*size.x-1)*(size.y-1)+(size.x-1)+(size.x*2-1)*idxy + 1 - idxx) =
         *(Q_lq + (2*size.x-1)*(size.y-1)+(size.x-1)-(size.x*2-1)*(idxy-1) + 1 - idxx) =
         *(deviceKMatrixPtr+emIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (3.141592f) * len);
+    }
         
-    };
+};
 
 struct FillV_q
 {
@@ -401,21 +411,32 @@ struct MatVecFunctorFFT : MatVecFunctorBase
     __host__
     void operator()(cuComplex* source, cuComplex* destination) const
     {
-        LL
+        /*int cufft_error = CUFFT_SUCCESS;
+#define CF(val) \
+if ((cufft_error = val) != CUFFT_SUCCESS) \
+printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
+        LL*/
         const int gridSize = (2*size.x-1)*(2*size.y-1);
-        thrust::device_vector <complex_t> Q_lq (gridSize,
-                                                complex_t(0.0f, 0.0f));
-        
-        thrust::device_vector <complex_t> V_q (Q_lq);
-        
-        thrust::device_vector <complex_t> acc (Q_lq);
+	printf ("size.x = %d, size.y = %d, gridSize = %d\n", size.x, size.y, gridSize);
+        //thrust::device_vector <int> Q_lq (gridSize);
+        LL
+	CudaPrintMemory ();
+        //thrust::device_vector <complex_t> V_q (Q_lq);
+
+        LL
+        //thrust::device_vector <complex_t> acc (Q_lq);
+        LL
+	//cudaDeviceSynchronize ();
+        //cufftHandle plan;
         
         LL
-        cufftHandle plan;
-        cufftCreate(&plan);
-        cufftPlan2d(&plan, 2*size.x-1, 2*size.y-1, CUFFT_C2C);
+	
+	//CF (cufftCreate(&plan))
+        //CF (cufftPlan2d(&plan, 2*size.x-1, 2*size.y-1, CUFFT_C2C))
+
+
         LL
-        printf ("About to loop over l\n");
+        /*printf ("About to loop over l\n");
         for (int l = 0; l < size.z; l++)
         {
         printf ("About to loop over q\n");
@@ -429,9 +450,9 @@ struct MatVecFunctorFFT : MatVecFunctorBase
                 LL 
                 thrust::for_each (thrust::device, seq, seq + size.x*size.y, fr);
                 LL
-                cufftExecC2C(plan, 
+                CF(cufftExecC2C(plan, 
                              reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()),
-                             reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()), CUFFT_FORWARD);
+                             reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()), CUFFT_FORWARD))
                 LL
                 
                 FillV_q fv (reinterpret_cast<complex_t*> (source),
@@ -439,10 +460,10 @@ struct MatVecFunctorFFT : MatVecFunctorBase
                             size, q);
                 thrust::for_each (thrust::device, seq, seq + size.x*size.y, fv);
                 LL
-                cufftExecC2C(plan, 
+                CF(cufftExecC2C(plan, 
                              reinterpret_cast<cufftComplex*> (V_q.data ().get ()),
                              reinterpret_cast<cufftComplex*> (V_q.data ().get ()),
-                             CUFFT_FORWARD);
+                             CUFFT_FORWARD))
                 LL
                 ElementwiseMultiplier_SumFFT ems (Q_lq.data ().get (), 
                                                   V_q.data ().get (), 
@@ -451,17 +472,17 @@ struct MatVecFunctorFFT : MatVecFunctorBase
                 
             }
             
-            cufftExecC2C(plan, 
+            CF(cufftExecC2C(plan, 
                          reinterpret_cast<cufftComplex*> (acc.data ().get ()),
                          reinterpret_cast<cufftComplex*> (acc.data ().get ()),
-                         CUFFT_INVERSE);
+                         CUFFT_INVERSE))
             
             FillS_l fs (reinterpret_cast<complex_t*> (destination),
                         acc.data().get(), size, l);
             
             thrust::for_each (thrust::device, seq, seq + size.x*size.y, fs);
-        }
-        cufftDestroy(plan);
+        }*/
+        //cufftDestroy(plan);
     }
 };
 
@@ -651,12 +672,16 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
                    reinterpret_cast <cuComplex*> (reductedA_solution.data ().get ()),
                    size3));
     //3-6. Bicgstab solution*/
+    LL
 
-    thrust::host_vector <complex_t> x_0 (size3, complex_t (1.0f, 0.0f));
-    thrust::device_vector <complex_t> x (x_0);
-    thrust::device_vector <complex_t> t0 (x_0);
-    thrust::device_vector <complex_t> t1 (x_0);
-
+        //thrust::host_vector <complex_t> x_0 (size3, complex_t (1.0f, 0.0f));
+    LL
+    thrust::device_vector <complex_t> x (size3, complex_t (1.0f, 0.0f));
+    LL
+    thrust::device_vector <complex_t> t0 (x);
+    LL
+    thrust::device_vector <complex_t> t1 (x);
+    LL
     MatVecFunctor matvecf_ (cublasH, deviceAMatrix.data().get (), size3);
     
     
@@ -664,7 +689,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     MatVecFunctorFFT matvecf (deviceKMatrix.data().get (), indexes.data (). get (), seq.data ().get (), inputData.discretizationSize_);
     
     alpha = complex_t (-1.0f, 0.0f);
-    
+      
     matvecf (reinterpret_cast<cuComplex*> (x.data().get ()),
              reinterpret_cast<cuComplex*> (t1.data().get ()));
     
@@ -677,7 +702,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     
     float norm = 0.0f;
     
-    CB (cublasScnrm2 (cublasH, size3, reinterpret_cast<cuComplex*> (t0.data().get ()), 1, &norm));
+    //CB (cublasScnrm2 (cublasH, size3, reinterpret_cast<cuComplex*> (t0.data().get ()), 1, &norm));
     
     printf ("norm = %e\n", norm);
     
@@ -685,7 +710,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     
     BiCGStabCudaSolver solver (size3, reductedA_solution.data().get (), x.data().get ());
 
-    solver.solve (&matvecf);
+    solver.solve (&matvecf_);
 
     CC(cudaDeviceSynchronize());
 

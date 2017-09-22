@@ -10,7 +10,7 @@
 
 CC = g++
 CU = nvcc
-CUFLAGS = -Wno-deprecated-gpu-targets 
+CUFLAGS = -Wno-deprecated-gpu-targets -arch=sm_20
 CFLAGS = -std=c++11 -Wall
 
 
