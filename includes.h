@@ -7,6 +7,7 @@
 #include <math.h>
 #include <complex>
 #include <complex.h>
+#include <unistd.h>
 using std::complex;
 
 #endif

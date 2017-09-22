@@ -3,6 +3,18 @@
 
 #include "CudaCalc.h"
 
+__global__ void PrintGrid (complex_t* data, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+	{
+            printf ("(%e %e) ", data[i*size + j].real (), data[i*size + j].imag ());
+	}
+	printf ("\n");
+    }
+}
+
 __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr)
 {
     /*    Point3DDevice_t<float> sourcePos_;

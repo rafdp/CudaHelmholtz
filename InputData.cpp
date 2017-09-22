@@ -16,9 +16,9 @@ const double ANOMALY_SIZE_WORLD_X = 300,
              ANOMALY_SIZE_WORLD_Y = 300,
              ANOMALY_SIZE_WORLD_Z = 300;
 
-const double DISCRETIZATION_NX = 10,
-             DISCRETIZATION_NY = 10,
-             DISCRETIZATION_NZ = 10;
+const double DISCRETIZATION_NX = 3,
+             DISCRETIZATION_NY = 3,
+             DISCRETIZATION_NZ = 3;
 
 const double RECEIVER_X_BEGIN_WORLD = 500,
              RECEIVER_X_END_WORLD   = 1500,
