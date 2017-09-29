@@ -283,6 +283,7 @@ struct FillRadialQ_lq
             float len = dr.len ();
             *(Q_lq + idx) = -thrust::exp (inputDataPtr->uiCoeff_ * len) /
             (4 * 3.141592f * len);
+	    return;
         }
         point_t rec = *(deviceIndexesPtr + recIdx);
         
@@ -291,7 +292,7 @@ struct FillRadialQ_lq
             rec.z - em.z};
         
         float len = dr.len ();
-	complex_t fill_val = fabs (len) > 1e-20 ? (*(deviceKMatrixPtr+emIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (3.141592f) * len)) : complex_t (0.0f, 0.0f);
+	complex_t fill_val = (*(deviceKMatrixPtr+emIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (3.141592f) * len));
         	
 	//if (idxx == idxy && idxx == 0) printf ("FILL_Q_LQ %e  filling with %e %e\n", len, fill_val.real(), fill_val.imag ());
         
@@ -326,7 +327,6 @@ struct FillV_q
     __device__
     void operator()(int idx) const
     {
-	printf ("VQ: idx = %d\n", idx);
         int idxx = idx % size.x;
         int idxy = idx / size.x;
         
@@ -338,24 +338,39 @@ struct FillV_q
     }
 };
 
-struct ElementwiseMultiplier_SumFFT
+struct ElementwiseMultiplierFFT
 {
     complex_t* V_q;
     complex_t* Q_lq;
-    complex_t* Acc;
     __host__
-    ElementwiseMultiplier_SumFFT (complex_t * Q_lq_,
-                                  complex_t * V_q_,
-                                  complex_t* Acc_) :
+    ElementwiseMultiplierFFT (complex_t * Q_lq_,
+                              complex_t * V_q_) :
         Q_lq (Q_lq_),
-        V_q (V_q_),
-        Acc (Acc_)
+        V_q (V_q_)
     {}
 
     __device__
     void operator()(int idx) const
     {
-        *(Acc + idx) += *(Q_lq + idx) * *(V_q + idx);
+        *(Q_lq + idx) *= *(V_q + idx);
+    }
+};
+
+struct LayerSumFFT
+{
+    complex_t* source;
+    complex_t* acc;
+    __host__
+    LayerSumFFT (complex_t* source_,
+		 complex_t* acc_) :
+	source (source_),
+	acc    (acc_)
+    {}
+
+    __device__
+    void operator() (int idx) const
+    {
+	*(acc + idx) += *(source + idx);
     }
 };
 
@@ -384,7 +399,8 @@ struct FillS_l
         int idxy = idx / size.x;
         
         *(destination + l*size.x*size.y + idxy*size.x + idxx) = 
-        *(acc + (2*size.x-1)*(size.y-1)+(size.x-1)+(size.x*2-1)*idxy + idxx);
+        *(acc + (2*size.x-1)*(size.y-1)+(size.x-1)-(size.x*2-1)*idxy - idxx)/
+        ((2.0f*size.x-1)*(2.0f*size.y-1));
     }
 };
 
@@ -439,9 +455,9 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
         {
         printf ("About to loop over q\n");
             for (int q = 0; q < size.z; q++)
-            {        
-                printf ("l = %d q = %d\n", l, q);
-                cudaDeviceSynchronize ();
+            {   
+                Q_lq.assign (gridSize, complex_t (0.0f));
+		printf ("l = %d q = %d\n", l, q);
                 FillRadialQ_lq fr (deviceKMatrixPtr,
                                    deviceIndexesPtr,
                                    Q_lq.data ().get (),
@@ -449,10 +465,11 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
 		LL 
                 thrust::for_each (thrust::device, seq, seq + size.x*size.y, fr);
                 LL
-                CF(cufftExecC2C(plan, 
+		CF(cufftExecC2C(plan, 
                              reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()),
                              reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()), CUFFT_FORWARD))
                 LL
+		//cudaDeviceSynchronize ();
                 FillV_q fv (reinterpret_cast<complex_t*> (source),
                             V_q.data ().get (),
                             size, q);
@@ -463,22 +480,25 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
                              reinterpret_cast<cufftComplex*> (V_q.data ().get ()),
                              CUFFT_FORWARD))
                 LL
-                ElementwiseMultiplier_SumFFT ems (Q_lq.data ().get (), 
-                                                  V_q.data ().get (), 
-                                                  acc.data ().get ());
+                ElementwiseMultiplierFFT ems (Q_lq.data ().get (), 
+                                              V_q.data ().get ());
                 thrust::for_each (thrust::device, seq, seq + gridSize, ems);
+		CF(cufftExecC2C(plan, 
+                             reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()),
+                             reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()),
+                             CUFFT_INVERSE))
+		LL
+		LayerSumFFT lsf (Q_lq.data ().get (), acc.data ().get ());
+
+                thrust::for_each (thrust::device, seq, seq + gridSize, lsf);
                 
             }
-            
-            CF(cufftExecC2C(plan, 
-                         reinterpret_cast<cufftComplex*> (acc.data ().get ()),
-                         reinterpret_cast<cufftComplex*> (acc.data ().get ()),
-                         CUFFT_INVERSE))
             
             FillS_l fs (reinterpret_cast<complex_t*> (destination),
                         acc.data().get(), size, l);
             
             thrust::for_each (thrust::device, seq, seq + size.x*size.y, fs);
+	    acc.assign (gridSize, complex_t (0.0f, 0.0f));
         }
         cufftDestroy(plan);
     }
@@ -682,21 +702,27 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     alpha = complex_t (-1.0f, 0.0f);
     
     
-    matvecf (reinterpret_cast<cuComplex*> (x.data().get ()),
+    matvecf_ (reinterpret_cast<cuComplex*> (x.data().get ()),
              reinterpret_cast<cuComplex*> (t1.data().get ()));
     
-    matvecf_ (reinterpret_cast<cuComplex*> (x.data().get ()),
+    matvecf (reinterpret_cast<cuComplex*> (x.data().get ()),
               reinterpret_cast<cuComplex*> (t0.data().get ()));
+    float norm0 = 0.0f;
+    float norm1 = 0.0f;
     
+    CB (cublasScnrm2 (cublasH, size3, reinterpret_cast<cuComplex*> (t1.data().get ()), 1, &norm1));
+    
+    CB (cublasScnrm2 (cublasH, size3, reinterpret_cast<cuComplex*> (t0.data().get ()), 1, &norm0));
+
     CB (cublasCaxpy(cublasH, size3, reinterpret_cast<cuComplex*> (&alpha), 
-                    reinterpret_cast<cuComplex*> (t1.data().get ()), 1, 
-                    reinterpret_cast<cuComplex*> (t0.data().get ()), 1));
+                    reinterpret_cast<cuComplex*> (t0.data().get ()), 1, 
+                    reinterpret_cast<cuComplex*> (t1.data().get ()), 1));
     
     float norm = 0.0f;
     
-    CB (cublasScnrm2 (cublasH, size3, reinterpret_cast<cuComplex*> (t0.data().get ()), 1, &norm));
+    CB (cublasScnrm2 (cublasH, size3, reinterpret_cast<cuComplex*> (t1.data().get ()), 1, &norm));
     
-    printf ("norm = %e\n", norm);
+    printf ("norm = %e, norm_fft = %e, norm_matvec = %e\n", norm, norm0, norm1);
     
     return;
     
