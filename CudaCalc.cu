@@ -5,14 +5,40 @@
 
 __global__ void PrintGrid (complex_t* data, int size)
 {
+    printf ("Printing grid 2d (%X)\n", data);
     for (int i = 0; i < size; i++)
-    {
+    { 
+	printf ("  ");
         for (int j = 0; j < size; j++)
 	{
-            printf ("(%e %e) ", data[i*size + j].real (), data[i*size + j].imag ());
+            printf ("(%.2e %.2e) ", data[i*size + j].real (), data[i*size + j].imag ());
 	}
 	printf ("\n");
     }
+    printf ("PrintGrid2D ended (%X)\n", data);
+}
+
+__global__ void PrintGrid3 (complex_t* data, int size)
+{
+    printf ("Printing grid 3d (%X)\n", data);
+    for (int i = 0; i < size; i++)
+    {
+	printf ("Layer %d\n", i);
+        for (int j = 0; j < size; j++)
+	{
+	    printf ("  ");
+            for (int k = 0; k < size; k++)
+	    {
+		int idx = i*size*size + j*size + k;
+		printf ("(%.2e %.2e) ", 
+			data[idx].real (), 
+			data[idx].imag ());
+	    }
+	    printf ("\n");
+	}
+	printf ("\n");
+    }
+    printf ("PrintGrid3D ended (%X)\n", data);
 }
 
 __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr)
