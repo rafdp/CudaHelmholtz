@@ -144,7 +144,7 @@ typedef thrust::complex<float> complex_t;
 typedef Point3DDevice_t<float> point_t;
 typedef Point3DDevice_t<int> pointInt_t;
 
-__global__ void PrintGrid (complex_t* data, int size);
+__global__ void PrintGrid (complex_t* data, int size, int div = 1);
 __global__ void PrintGrid3 (complex_t* data, int size);
 __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr);
 __global__ void ReduceEmittersToReceiver (InputDataOnDevice * inputDataPtr,

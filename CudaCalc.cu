@@ -3,7 +3,7 @@
 
 #include "CudaCalc.h"
 
-__global__ void PrintGrid (complex_t* data, int size)
+__global__ void PrintGrid (complex_t* data, int size, int div)
 {
     printf ("Printing grid 2d (%X)\n", data);
     for (int i = 0; i < size; i++)
@@ -11,7 +11,7 @@ __global__ void PrintGrid (complex_t* data, int size)
 	printf ("  ");
         for (int j = 0; j < size; j++)
 	{
-            printf ("(%.2e %.2e) ", data[i*size + j].real (), data[i*size + j].imag ());
+            printf ("(%.2e %.2e) ", data[i*size + j].real ()/div, data[i*size + j].imag ()/div);
 	}
 	printf ("\n");
     }
