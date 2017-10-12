@@ -11,7 +11,7 @@ __global__ void PrintGrid (complex_t* data, int size, int div)
 	printf ("  ");
         for (int j = 0; j < size; j++)
 	{
-            printf ("(%.2e %.2e) ", data[i*size + j].real ()/div, data[i*size + j].imag ()/div);
+            printf ("%.2e ", data[i*size + j].real ()/div/*, data[i*size + j].imag ()/div*/);
 	}
 	printf ("\n");
     }

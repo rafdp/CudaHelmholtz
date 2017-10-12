@@ -14,6 +14,8 @@ __device__
                       inputDataPtr->sourcePos_.y - pos.y,
                       inputDataPtr->sourcePos_.z - pos.z};
         float len = dr.len ();
+	complex_t value = thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
+        printf ("MODIFIYING K: %.2e %.2e\n", value.real(), value.imag ());	
         return inputDataPtr->w2h3_ * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len) * k;
     }
 };
@@ -46,6 +48,7 @@ __device__
                       pos1.z-pos2.z};
         float len = dr.len ();
 
+	
 //--------------------------------------------------------------------+
 // using ui in point   idx1   , maybe will need to tune               |
 // if row-major order is used:                                        |
@@ -68,7 +71,7 @@ __device__
 //--------------------------------------------------------------------+
 
 
-        return (*(deviceKMatrixPtr + idx2)) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
+        return (*(deviceKMatrixPtr + idx2))* thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
     }
 };
 
@@ -86,6 +89,8 @@ struct ModifyAMatrix
 __device__
     void operator() (int idx)
     {
+        //*(deviceAMatrixPtr + idx*(inputDataPtr->size3_+1)) = complex_t (0.0f, 0.0f);
+	//return;
         point_t pos = *(deviceIndexesPtr + idx);
         point_t dr = {inputDataPtr->sourcePos_.x - pos.x,
                       inputDataPtr->sourcePos_.y - pos.y,
@@ -187,7 +192,6 @@ struct MatVecFunctor : MatVecFunctorBase
 #define CENTER_INDEX (2*size.y+1)*size.x
 struct FillRadialQ_lq
 {
-    complex_t* deviceKMatrixPtr;
     point_t * deviceIndexesPtr;
     complex_t* Q_lq;
     pointInt_t size;
@@ -195,13 +199,11 @@ struct FillRadialQ_lq
     int q;
     
     __host__
-    FillRadialQ_lq (complex_t * deviceKMatrixPtr_,
-                    point_t * deviceIndexesPtr_,
+    FillRadialQ_lq (point_t * deviceIndexesPtr_,
                     complex_t * Q_lq_,
                     pointInt_t size_,
                     int l_,
                     int q_) :
-    deviceKMatrixPtr (deviceKMatrixPtr_),
     deviceIndexesPtr (deviceIndexesPtr_),
     Q_lq             (Q_lq_),
     size             (size_),
@@ -215,11 +217,11 @@ struct FillRadialQ_lq
 	if (idx < 2*size.x) *(Q_lq + idx) = complex_t (0.0f, 0.0f);
 	if (idx < 2*size.y) *(Q_lq + idx*2*size.x) = complex_t (0.0f, 0.0f);
 	
-        int idxx = idx % size.x;
-        int idxy = idx / size.x;
+        int idxy = idx % size.x;
+        int idxx = idx / size.x;
         
-        int recIdx = l*size.x*size.y;
-        int emIdx = q*size.x*size.y + idxy * size.x + idxx;
+        int emIdx = l*size.x*size.y;
+        int recIdx = q*size.x*size.y + idxy * size.x + idxx;
         
        	printf ("!!!!!!!!!!Q_lq fill, got idx %d, x %d, y %d, em %d, rec %d\n", idx, idxx, idxy, emIdx, recIdx);
         point_t em = *(deviceIndexesPtr + emIdx);
@@ -229,8 +231,7 @@ struct FillRadialQ_lq
                           inputDataPtr->sourcePos_.y - em.y,
                           inputDataPtr->sourcePos_.z - em.z};
             float len = dr.len ();
-            *(Q_lq + CENTER_INDEX)  = -thrust::exp (inputDataPtr->uiCoeff_ * len) /
-            (4 * 3.141592f * len);
+            *(Q_lq + CENTER_INDEX)  = complex_t (0.0f, 0.0f)/*-thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len)*/; 
 	    return;
         }
         point_t rec = *(deviceIndexesPtr + recIdx);
@@ -240,7 +241,7 @@ struct FillRadialQ_lq
             rec.z - em.z};
         
         float len = dr.len ();
-	complex_t fill_val = (*(deviceKMatrixPtr+emIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (3.141592f) * len));    
+	complex_t fill_val = (inputDataPtr->w2h3_ * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (3.141592f) * len));    
         *(Q_lq + CENTER_INDEX + (size.x*2)*idxy + idxx) =
         *(Q_lq + CENTER_INDEX - (size.x*2)*idxy + idxx) =
         *(Q_lq + CENTER_INDEX + (size.x*2)*idxy - idxx) =
@@ -252,16 +253,19 @@ struct FillRadialQ_lq
 
 struct FillV_q
 {
+    point_t * deviceIndexesPtr;
     complex_t* source;
     complex_t* V_q;
     pointInt_t size;
     int q;
     
     __host__
-    FillV_q (complex_t * source_,
+    FillV_q (point_t * deviceIndexesPtr_,
+	     complex_t * source_,
              complex_t * V_q_,
              pointInt_t size_,
              int q_) :
+        deviceIndexesPtr (deviceIndexesPtr_),
         source (source_),
         V_q    (V_q_),
         size   (size_),
@@ -274,31 +278,54 @@ struct FillV_q
         int idxx = idx % size.x;
         int idxy = idx / size.x;
         
+        int recIdx = q*size.x*size.y + idxy * size.x + idxx;
+	
+	point_t rec = *(deviceIndexesPtr + recIdx);
+        point_t dr = {inputDataPtr->sourcePos_.x - rec.x,
+                      inputDataPtr->sourcePos_.y - rec.y,
+     		      inputDataPtr->sourcePos_.z - rec.z};
+        float len = dr.len ();
+	complex_t value = thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len); 
+	/*printf ("Modifying %d %.2e %.2e\n", idx, value.real (), value.imag ());
+	*(destination + idx) *= value; */
+         
 	           *(V_q + CENTER_INDEX + (size.x*2)*idxy + idxx) =
-                       *(source + q*size.x*size.y + idxy * size.x + idxx);
+                       *(source + q*size.x*size.y + idxy * size.x + idxx) * value;
         *(V_q + CENTER_INDEX - 2*size.x - (size.x*2)*idxy + idxx)     = complex_t (0.0f, 0.0f);
 	*(V_q + CENTER_INDEX +            (size.x*2)*idxy - idxx - 1) = complex_t (0.0f, 0.0f);
         *(V_q + CENTER_INDEX - 2*size.x - (size.x*2)*idxy - idxx - 1) = complex_t (0.0f, 0.0f);
     }
 };
-struct ElementwiseMultiplierFFT
+
+const int OP_ADD = '+',
+          OP_SUB = '-',
+	  OP_MUL = '*';
+
+struct ElementwiseOperation
 {
-    complex_t* Q_lq;
-    complex_t* V_q;
+    complex_t* modifiable;
+    complex_t* source;
+    int op;
     __host__
-    ElementwiseMultiplierFFT (complex_t * Q_lq_,
-                              complex_t * V_q_) :
-        Q_lq (Q_lq_),
-        V_q (V_q_)
+    ElementwiseOperation (complex_t * mod_,
+                           complex_t * source_,
+			   int op_) :
+        modifiable (mod_),
+        source     (source_),
+	op         (op_)
     {}
 
     __device__
     void operator()(int idx) const
     {
-        *(Q_lq + idx) *= *(V_q + idx);
+        if (op == OP_ADD) *(modifiable + idx) += *(source + idx);
+	else
+        if (op == OP_SUB) *(modifiable + idx) -= *(source + idx);
+	else
+        if (op == OP_MUL) *(modifiable + idx) *= *(source + idx);
     }
 };
-
+/*
 struct LayerSumFFT
 {
     complex_t* source;
@@ -316,7 +343,7 @@ struct LayerSumFFT
 	*(acc + idx) += *(source + idx);
     }
 };
-
+*/
 struct FillS_l
 {
     complex_t* destination;
@@ -338,28 +365,59 @@ struct FillS_l
     __device__
     void operator()(int idx) const
     {
-        int idxx = idx % size.x;
-        int idxy = idx / size.x;
+        int idxy = idx % size.x;
+        int idxx = idx / size.x;
         *(destination + l*size.x*size.y + idxy*size.x + idxx) = 
         *(acc + (size.x*2)*idxy + idxx) / (4.0f*size.x*size.y);
     }
+};
+
+
+struct MinusSourceUi
+{
+    point_t* deviceIndexesPtr;
+    complex_t* source;
+    complex_t* destination;
+    __host__ 
+    MinusSourceUi (point_t* deviceIndexesPtr_,
+		   complex_t* source_,
+		   complex_t* destination_) : 
+        deviceIndexesPtr (deviceIndexesPtr_),
+	source           (source_),
+	destination      (destination_)
+    {}
+
+    __device__ 
+    void operator () (int idx)
+    { 
+	point_t rec = *(deviceIndexesPtr + idx);
+        point_t dr = {inputDataPtr->sourcePos_.x - rec.x,
+                      inputDataPtr->sourcePos_.y - rec.y,
+     		      inputDataPtr->sourcePos_.z - rec.z};
+        float len = dr.len ();
+	complex_t value =  *(source + idx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
+        //printf ("subtracting %d %.2e %.2e\n", idx, (source+idx)->real(), (destination+idx)->real ());	
+	//printf ("before: %.2e, after: %.e2\n", (destination+idx)->real (), (*(destination + idx) - value).real ());
+	*(destination + idx) -= value;
+    }
+
 };
 
 #undef CENTER_INDEX
 
 struct MatVecFunctorFFT : MatVecFunctorBase
 {
-    complex_t* deviceKMatrixPtr;
+    complex_t* deviceDS2MatrixPtr;
     point_t * deviceIndexesPtr;
     int* seq;
     pointInt_t size;
     
     __host__
-    MatVecFunctorFFT (complex_t * deviceKMatrixPtr_,
+    MatVecFunctorFFT (complex_t * deviceDS2MatrixPtr_,
                       point_t *   deviceIndexesPtr_,
                       int* seq_,
                       pointInt_t size_) :
-        deviceKMatrixPtr (deviceKMatrixPtr_),
+        deviceDS2MatrixPtr (deviceDS2MatrixPtr_),
         deviceIndexesPtr (deviceIndexesPtr_),
         seq      (seq_),
         size     (size_)
@@ -400,8 +458,7 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
             {   
                 //Q_lq.assign (gridSize, complex_t (0.0f));
                 printf ("About to print Q (l=%d q=%d) before FFT\n", l, q);
-                FillRadialQ_lq fr (deviceKMatrixPtr,
-                                   deviceIndexesPtr,
+                FillRadialQ_lq fr (deviceIndexesPtr,
                                    Q_lq.data ().get (),
                                    size, l, q);
 		//LL 
@@ -417,7 +474,8 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
 		printf ("About to print Q (l=%d q=%d) after FFT\n", l, q);
 		cudaDeviceSynchronize ();
 		PrintGrid <<<1, 1>>> (Q_lq.data ().get(), 2*size.x);
-                FillV_q fv (reinterpret_cast<complex_t*> (source),
+                FillV_q fv (deviceIndexesPtr,
+		            reinterpret_cast<complex_t*> (source),
                             V_q.data ().get (),
                             size, q);
                 thrust::for_each (thrust::device, seq, seq + size.x*size.y, fv);
@@ -436,11 +494,10 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
 		cudaDeviceSynchronize ();
 		PrintGrid <<<1, 1>>> (V_q.data ().get(), 2*size.x);
                 //LL
-                ElementwiseMultiplierFFT ems (Q_lq.data ().get (), 
-                                              V_q.data ().get ());
+                ElementwiseOperation ems (Q_lq.data ().get (), V_q.data ().get (), OP_MUL);
                 thrust::for_each (thrust::device, seq, seq + gridSize, ems);
 		//LL
-		LayerSumFFT lsf (Q_lq.data ().get (), acc.data ().get ());
+		ElementwiseOperation lsf (acc.data ().get (), Q_lq.data ().get (), OP_ADD);
 
 		//cudaDeviceSynchronize ();
                 //printf ("About to print Q (l=%d q=%d) after inverse FFT\n", l, q);
@@ -475,6 +532,14 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
 	    acc.assign (gridSize, complex_t (0.0f, 0.0f));
         }
         cufftDestroy(plan);
+	ElementwiseOperation ds2_mul (reinterpret_cast<complex_t*> (destination), deviceDS2MatrixPtr, OP_MUL);
+	thrust::for_each (thrust::device, seq, seq + size.x*size.y*size.z, ds2_mul);
+        
+        MinusSourceUi msu (deviceIndexesPtr, 
+			  reinterpret_cast<complex_t*> (source),
+			  reinterpret_cast<complex_t*> (destination));
+        thrust::for_each (thrust::device, seq, seq + size.x*size.y*size.z, msu);	
+
     }
 };
 
@@ -535,7 +600,8 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
         }
     }
 
-    thrust::device_vector<complex_t > deviceKMatrix (hostDs2Matrix);
+    thrust::device_vector<complex_t> deviceKMatrix   (hostDs2Matrix);
+    thrust::device_vector<complex_t> deviceDS2Matrix (deviceKMatrix);
     
     thrust::device_vector<point_t > indexes (size3);
     
@@ -673,11 +739,11 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     thrust::device_vector <complex_t> t1 (x_0);
 
     MatVecFunctor matvecf_ (cublasH, deviceAMatrix.data().get (), size3);
-    MatVecFunctorFFT matvecf (deviceKMatrix.data().get (), indexes.data (). get (), seq.data ().get (), inputData.discretizationSize_);
+    MatVecFunctorFFT matvecf (deviceDS2Matrix.data().get (), indexes.data (). get (), seq.data ().get (), inputData.discretizationSize_);
     
     alpha = complex_t (-1.0f, 0.0f);
     printf ("About to print A matrix\n");
-    PrintGrid3 <<<1, 1>>> (deviceAMatrix.data().get(), inputData.discretizationSize_[0]*inputData.discretizationSize_[1]);
+    PrintGrid <<<1, 1>>> (deviceAMatrix.data().get(), inputData.discretizationSize_[0]*inputData.discretizationSize_[1]*inputData.discretizationSize_[2]);
     
     matvecf_ (reinterpret_cast<cuComplex*> (x.data().get ()),
              reinterpret_cast<cuComplex*> (t1.data().get ()));
