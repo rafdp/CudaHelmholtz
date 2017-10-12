@@ -9,16 +9,17 @@ const int SOURCE_POS_WORLD_X = 0,
           SOURCE_POS_WORLD_Z = 0;
 
 const double ANOMALY_POS_WORLD_X = 500,
-             ANOMALY_POS_WORLD_Y = 0,
+             ANOMALY_POS_WORLD_Y = -150,
              ANOMALY_POS_WORLD_Z = 300;
 
 const double ANOMALY_SIZE_WORLD_X = 300,
              ANOMALY_SIZE_WORLD_Y = 300,
              ANOMALY_SIZE_WORLD_Z = 300;
 
-const double DISCRETIZATION_NX = 7,
-             DISCRETIZATION_NY = 7,
-             DISCRETIZATION_NZ = 7;
+const int    DISCR_N = 3;
+const double DISCRETIZATION_NX = DISCR_N,
+             DISCRETIZATION_NY = DISCR_N,
+             DISCRETIZATION_NZ = DISCR_N;
 
 const double RECEIVER_X_BEGIN_WORLD = 500,
              RECEIVER_X_END_WORLD   = 1500,

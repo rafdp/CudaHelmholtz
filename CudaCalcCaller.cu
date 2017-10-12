@@ -14,8 +14,6 @@ __device__
                       inputDataPtr->sourcePos_.y - pos.y,
                       inputDataPtr->sourcePos_.z - pos.z};
         float len = dr.len ();
-	complex_t value = thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len);
-        printf ("MODIFIYING K: %.2e %.2e\n", value.real(), value.imag ());	
         return inputDataPtr->w2h3_ * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len) * k;
     }
 };
@@ -89,8 +87,6 @@ struct ModifyAMatrix
 __device__
     void operator() (int idx)
     {
-        //*(deviceAMatrixPtr + idx*(inputDataPtr->size3_+1)) = complex_t (0.0f, 0.0f);
-	//return;
         point_t pos = *(deviceIndexesPtr + idx);
         point_t dr = {inputDataPtr->sourcePos_.x - pos.x,
                       inputDataPtr->sourcePos_.y - pos.y,
@@ -223,15 +219,11 @@ struct FillRadialQ_lq
         int emIdx = l*size.x*size.y;
         int recIdx = q*size.x*size.y + idxy * size.x + idxx;
         
-       	printf ("!!!!!!!!!!Q_lq fill, got idx %d, x %d, y %d, em %d, rec %d\n", idx, idxx, idxy, emIdx, recIdx);
+       	//printf ("!!!!!!!!!!Q_lq fill, got idx %d, x %d, y %d, em %d, rec %d\n", idx, idxx, idxy, emIdx, recIdx);
         point_t em = *(deviceIndexesPtr + emIdx);
         if (emIdx == recIdx)
         {
-            point_t dr = {inputDataPtr->sourcePos_.x - em.x,
-                          inputDataPtr->sourcePos_.y - em.y,
-                          inputDataPtr->sourcePos_.z - em.z};
-            float len = dr.len ();
-            *(Q_lq + CENTER_INDEX)  = complex_t (0.0f, 0.0f)/*-thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len)*/; 
+            *(Q_lq + CENTER_INDEX)  = complex_t (0.0f, 0.0f); 
 	    return;
         }
         point_t rec = *(deviceIndexesPtr + recIdx);
@@ -286,8 +278,8 @@ struct FillV_q
      		      inputDataPtr->sourcePos_.z - rec.z};
         float len = dr.len ();
 	complex_t value = thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * 3.141592f * len); 
-	/*printf ("Modifying %d %.2e %.2e\n", idx, value.real (), value.imag ());
-	*(destination + idx) *= value; */
+	//printf ("Modifying %d %.2e %.2e\n", idx, value.real (), value.imag ());
+	//*(destination + idx) *= value; 
          
 	           *(V_q + CENTER_INDEX + (size.x*2)*idxy + idxx) =
                        *(source + q*size.x*size.y + idxy * size.x + idxx) * value;
@@ -325,25 +317,7 @@ struct ElementwiseOperation
         if (op == OP_MUL) *(modifiable + idx) *= *(source + idx);
     }
 };
-/*
-struct LayerSumFFT
-{
-    complex_t* source;
-    complex_t* acc;
-    __host__
-    LayerSumFFT (complex_t* source_,
-		 complex_t* acc_) :
-	source (source_),
-	acc    (acc_)
-    {}
 
-    __device__
-    void operator() (int idx) const
-    {
-	*(acc + idx) += *(source + idx);
-    }
-};
-*/
 struct FillS_l
 {
     complex_t* destination;
@@ -430,50 +404,50 @@ struct MatVecFunctorFFT : MatVecFunctorBase
 #define CF(val) \
 if ((cufft_error = val) != CUFFT_SUCCESS) \
 printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
-        LL
+        //LL
         const int gridSize = 2*size.x*2*size.y;
-	printf ("size.x = %d, size.y = %d, gridSize = %d\n", size.x, size.y, gridSize);
+	//printf ("size.x = %d, size.y = %d, gridSize = %d\n", size.x, size.y, gridSize);
 	thrust::device_vector <complex_t> Q_lq (gridSize,
                                                 complex_t(0.0f, 0.0f));
-        LL
+        //LL
         thrust::device_vector <complex_t> V_q (gridSize,
                                                 complex_t(0.0f, 0.0f));
 
-        LL
+        //LL
         thrust::device_vector <complex_t> acc (gridSize,
                                                 complex_t(0.0f, 0.0f));
         cudaDeviceSynchronize ();
         cufftHandle plan;
         
-        LL
+        //LL
 	CF (cufftCreate(&plan))
         CF (cufftPlan2d(&plan, 2*size.x, 2*size.y, CUFFT_C2C))
 	
-        LL
-        printf ("About to loop over l\n");
+        //LL
+        //printf ("About to loop over l\n");
         for (int l = 0; l < size.z; l++)
         {
-        printf ("About to loop over q\n");
+        //printf ("About to loop over q\n");
             for (int q = 0; q < size.z; q++)
             {   
                 //Q_lq.assign (gridSize, complex_t (0.0f));
-                printf ("About to print Q (l=%d q=%d) before FFT\n", l, q);
+                //printf ("About to print Q (l=%d q=%d) before FFT\n", l, q);
                 FillRadialQ_lq fr (deviceIndexesPtr,
                                    Q_lq.data ().get (),
                                    size, l, q);
 		//LL 
                 thrust::for_each (thrust::device, seq, seq + size.x*size.y, fr);
 		//cudeDeviceSynchronize ();
-		PrintGrid <<<1, 1>>> (Q_lq.data ().get(), 2*size.x);
+		//PrintGrid <<<1, 1>>> (Q_lq.data ().get(), 2*size.x);
                 //LL
 		CF(cufftExecC2C(plan, 
                              reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()),
                              reinterpret_cast<cufftComplex*> (Q_lq.data ().get ()), CUFFT_FORWARD))
                 //LL
 		cudaDeviceSynchronize ();
-		printf ("About to print Q (l=%d q=%d) after FFT\n", l, q);
+		//printf ("About to print Q (l=%d q=%d) after FFT\n", l, q);
 		cudaDeviceSynchronize ();
-		PrintGrid <<<1, 1>>> (Q_lq.data ().get(), 2*size.x);
+		//PrintGrid <<<1, 1>>> (Q_lq.data ().get(), 2*size.x);
                 FillV_q fv (deviceIndexesPtr,
 		            reinterpret_cast<complex_t*> (source),
                             V_q.data ().get (),
@@ -481,18 +455,18 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
                 thrust::for_each (thrust::device, seq, seq + size.x*size.y, fv);
                 //LL
                 cudaDeviceSynchronize ();
-		printf ("About to print V (l=%d q=%d) before FFT\n", l, q);
+		//printf ("About to print V (l=%d q=%d) before FFT\n", l, q);
 		cudaDeviceSynchronize ();
-		PrintGrid <<<1, 1>>> (V_q.data ().get(), 2*size.x);
+		//PrintGrid <<<1, 1>>> (V_q.data ().get(), 2*size.x);
                 cudaDeviceSynchronize ();
 		CF(cufftExecC2C(plan, 
                              reinterpret_cast<cufftComplex*> (V_q.data ().get ()),
                              reinterpret_cast<cufftComplex*> (V_q.data ().get ()),
                              CUFFT_FORWARD))
                 cudaDeviceSynchronize ();
-		printf ("About to print V (l=%d q=%d) after FFT\n", l, q);
+		//printf ("About to print V (l=%d q=%d) after FFT\n", l, q);
 		cudaDeviceSynchronize ();
-		PrintGrid <<<1, 1>>> (V_q.data ().get(), 2*size.x);
+		//PrintGrid <<<1, 1>>> (V_q.data ().get(), 2*size.x);
                 //LL
                 ElementwiseOperation ems (Q_lq.data ().get (), V_q.data ().get (), OP_MUL);
                 thrust::for_each (thrust::device, seq, seq + gridSize, ems);
@@ -505,15 +479,15 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
 		//PrintGrid <<<1, 1>>> (Q_lq.data ().get(), 2*size.x);
                 thrust::for_each (thrust::device, seq, seq + gridSize, lsf);
 		cudaDeviceSynchronize ();
-                printf ("About to print acc (l=%d q=%d) after accumulation\n", l, q);
+                //printf ("About to print acc (l=%d q=%d) after accumulation\n", l, q);
 		cudaDeviceSynchronize ();
-		PrintGrid <<<1, 1>>> (acc.data ().get(), 2*size.x);
+		//PrintGrid <<<1, 1>>> (acc.data ().get(), 2*size.x);
 		cudaDeviceSynchronize ();
             }
             cudaDeviceSynchronize ();
-	    printf ("About to print acc (l=%d) after full accumulation\n", l);
+	    //printf ("About to print acc (l=%d) after full accumulation\n", l);
 	    cudaDeviceSynchronize ();
-	    PrintGrid <<<1, 1>>> (acc.data ().get(), 2*size.x);
+	    //PrintGrid <<<1, 1>>> (acc.data ().get(), 2*size.x);
 	    CF(cufftExecC2C(plan, 
                             reinterpret_cast<cufftComplex*> (acc.data ().get ()),
                             reinterpret_cast<cufftComplex*> (acc.data ().get ()),
@@ -524,9 +498,9 @@ printf ("ERROR on line %d, code %d\n", __LINE__, cufft_error);
             
             thrust::for_each (thrust::device, seq, seq + size.x*size.y, fs);
 	    cudaDeviceSynchronize ();
-            printf ("About to print acc (l=%d) after inverse FFT\n", l);
+            //printf ("About to print acc (l=%d) after inverse FFT\n", l);
             cudaDeviceSynchronize ();
-	    PrintGrid <<<1, 1>>> (acc.data ().get(), 2*size.x, 4*size.x*size.y);
+	    //PrintGrid <<<1, 1>>> (acc.data ().get(), 2*size.x, 4*size.x*size.y);
 	    cudaDeviceSynchronize ();
 
 	    acc.assign (gridSize, complex_t (0.0f, 0.0f));
@@ -742,9 +716,9 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     MatVecFunctorFFT matvecf (deviceDS2Matrix.data().get (), indexes.data (). get (), seq.data ().get (), inputData.discretizationSize_);
     
     alpha = complex_t (-1.0f, 0.0f);
-    printf ("About to print A matrix\n");
-    PrintGrid <<<1, 1>>> (deviceAMatrix.data().get(), inputData.discretizationSize_[0]*inputData.discretizationSize_[1]*inputData.discretizationSize_[2]);
-    
+    //printf ("About to print A matrix\n");
+    //PrintGrid <<<1, 1>>> (deviceAMatrix.data().get(), inputData.discretizationSize_[0]*inputData.discretizationSize_[1]*inputData.discretizationSize_[2]);
+    /*
     matvecf_ (reinterpret_cast<cuComplex*> (x.data().get ()),
              reinterpret_cast<cuComplex*> (t1.data().get ()));
     
@@ -757,12 +731,12 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     
     CB (cublasScnrm2 (cublasH, size3, reinterpret_cast<cuComplex*> (t0.data().get ()), 1, &norm0));
 
-    printf ("FFT result:\n");
-    PrintGrid3 <<<1, 1>>> (t0.data().get (), inputData.discretizationSize_[0]);   
-    cudaDeviceSynchronize (); 
-    printf ("Matvec result:\n");
-    PrintGrid3 <<<1, 1>>> (t1.data().get (), inputData.discretizationSize_[0]);    
-    cudaDeviceSynchronize ();
+    //printf ("FFT result:\n");
+    //PrintGrid3 <<<1, 1>>> (t0.data().get (), inputData.discretizationSize_[0]);   
+    //cudaDeviceSynchronize (); 
+    //printf ("Matvec result:\n");
+    //PrintGrid3 <<<1, 1>>> (t1.data().get (), inputData.discretizationSize_[0]);    
+    //cudaDeviceSynchronize ();
     CB (cublasCaxpy(cublasH, size3, reinterpret_cast<cuComplex*> (&alpha), 
                     reinterpret_cast<cuComplex*> (t0.data().get ()), 1, 
                     reinterpret_cast<cuComplex*> (t1.data().get ()), 1));
@@ -773,10 +747,25 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
     
     printf ("Got norm (difference) = %e\nnorm FFT = %*e\nnorm Matvec = %*e\n", norm, 13, norm0, 10, norm1);
     //return;
-    
+    */
     BiCGStabCudaSolver solver (size3, reductedA_solution.data().get (), x.data().get ());
 
+    timespec ts0 = {}, ts1 = {};
+    clock_gettime(CLOCK_REALTIME, &ts0); // Works on Linux
     solver.solve (&matvecf_);
+    clock_gettime(CLOCK_REALTIME, &ts1);
+    unsigned long long time1 = (ts1.tv_sec - ts0.tv_sec)*1000000000 + ts1.tv_nsec-ts0.tv_nsec; 
+    printf ("MATRIX took %llu ns\n", time1);
+    ts0 = {};
+    ts1 = {};
+    clock_gettime(CLOCK_REALTIME, &ts0); // Works on Linux
+    solver.solve (&matvecf);
+    clock_gettime(CLOCK_REALTIME, &ts1);
+    unsigned long long time2 = (ts1.tv_sec - ts0.tv_sec)*1000000000 + ts1.tv_nsec-ts0.tv_nsec; 
+    printf ("FFT took %llu ns\n", time2);
+
+    printf ("Matrix is %.1f times faster than FFT (%d^3)\n", (1.0*time2)/time1, inputData.discretizationSize_[0]);
+
 
     CC(cudaDeviceSynchronize());
 
@@ -798,7 +787,9 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
     for (int i = 0; i < inputData.Nreceivers_; i++)
     {
-        QLReduction qlRed (inputData.receivers_[i], reductedA_solution.data().get(), indexes.data ().get (), deviceKMatrix.data ().get ());
+        QLReduction qlRed (inputData.receivers_[i], 
+			   reductedA_solution.data().get(), 
+			   indexes.data ().get (), deviceKMatrix.data ().get ());
         complex_t init (0.0f, 0.0f);
         ComplexAddition complexSum;
         thrust::transform (seq.begin (), seq.begin () + size3, ones.begin(), qlRed);
