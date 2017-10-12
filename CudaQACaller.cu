@@ -69,10 +69,10 @@ struct GreenOperatorBorn
 
 		//printf ("(%e, %e, %e)\n", dr.x, dr.y, dr.z);
 	
-		thrust::complex <float> out = *(UiPtr + idx)  * thrust::exp(d_inputData -> uiCoeff_ * dr.len()) / (4 * _PI * dr.len());
+		thrust::complex <float> out =(*(dSPtr + idx)) * inputDataPtr -> w2h3_ * *(UiPtr + idx)  * thrust::exp(d_inputData -> uiCoeff_ * dr.len()) / (4 * _PI * dr.len());
 						            
-		/*if (out.real() == inf)																																																							printf ("(%e, %e, %e)\n", dr.x, dr.y, dr.z);
-		else return thrust::complex <float> (0.0, 0.0);*/
+		if (abs(out.real()) > 1) return thrust::complex<float> (0.0, 0.0);
+        else return out;
 	}
 };
 
@@ -354,7 +354,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 		Point3DDevice_t <float> rj = Points [i];
 		//printf ("started counting recv n %d\n", i);
 
-		thrust::tabulate(BornForReciever.begin(), BornForReciever.begin(), ComplexIndex()); 
+		thrust::tabulate(BornForReciever.begin(), BornForReciever.end(), ComplexIndex()); 
 
 		//float init = 0; //ui to global
 		
@@ -364,7 +364,7 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 		//scanf ("%d", &i);
 	}
 	cudaDeviceSynchronize ();
-	//thrust::for_each (Ub.begin () + 100, Ub.begin () + 400, PrintComplexVector());
+	thrust::for_each (Ub.begin () + 100, Ub.begin () + 400, PrintComplexVector());
 
 
 	for (int i = 0; i < recvNum; i ++)
