@@ -74,9 +74,7 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
     thrust::device_vector<complex_t> r_ (n_, complex_t(0.0f, 0.0f));
     
     cuComplex* r = cc(r_.data().get());
-    printf ("About to call first matvec\n");
     (*matVec) (x, r);
-    printf ("Returned from first matvec\n");
     CB (cublasCscal(cublasHandle_, n_, cc(&minusOne), r, 1));
     CB (cublasCaxpy(cublasHandle_, n_, cc(&one), b, 1, r, 1));
 
