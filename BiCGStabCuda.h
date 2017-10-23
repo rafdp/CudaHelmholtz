@@ -7,7 +7,7 @@
 class MatVecFunctorBase
 {   public:
     __host__
-    virtual void operator()(cuComplex* source, cuComplex* destination) const = 0;
+    virtual void operator()(cuComplex* source, cuComplex* destination) = 0;
 };
 
 /// Fortran order
