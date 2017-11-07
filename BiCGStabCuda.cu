@@ -36,8 +36,9 @@ BiCGStabCudaSolver::BiCGStabCudaSolver (int n,
 
 }
 
-void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float tol)
+size_t BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float tol)
 {
+
     cublasStatus_t cublas_status = CUBLAS_STATUS_SUCCESS;
     if (!nIter)
     {
@@ -49,7 +50,8 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
     
     cublasHandle_t cublasHandle_ = nullptr;
     CB(cublasCreate(&cublasHandle_));
-
+    
+    
     /// Initializing scalars:
     complex_t rho    = complex_t(1.0f, 0.0f),
               rhoOld = complex_t(1.0f, 0.0f),
@@ -67,6 +69,7 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
 
     #define cc(x) (reinterpret_cast <cuComplex*> (x))
     
+    
     cuComplex* x = cc(device_x_);
     cuComplex* b = cc(device_b_);
 
@@ -75,8 +78,6 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
     
     cuComplex* r = cc(r_.data().get());
     (*matVec) (x, r);
-    CB (cublasCscal(cublasHandle_, n_, cc(&minusOne), r, 1));
-    CB (cublasCaxpy(cublasHandle_, n_, cc(&one), b, 1, r, 1));
 
     thrust::device_vector<complex_t> r0_ (r_);
     
@@ -110,10 +111,18 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
     
     const float tolerance = tol;
     const float zeroNorm = tolerance*tolerance;
-    const int Nrestarts = 10;
+    const int Nrestarts = 200000;
+    size_t free_byte ;
+    size_t total_byte ;
+
+    cudaMemGetInfo( &free_byte, &total_byte );
+
     
-    for (int i = 0; i < nIter; i++)
+    int i = 0;
+    for (i = 0; i < nIter; i++)
     {
+    
+    
         /// 1. rho = r0 dot r
         rhoOld = rho;
         CB (cublasCdotc (cublasHandle_, n_,
@@ -122,6 +131,8 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
                          cc(&rho)));
         cn (rho) 
         
+    
+    
         if (i != 0 && (thrust::abs (rho) < tolerance*r0Norm || 
                        thrust::abs (rhoOld) < zeroNorm || 
                        thrust::abs (omega) < zeroNorm || 
@@ -129,6 +140,8 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
         {
             /// 2.1. r = b - mat * x
             (*matVec) (x, r);
+    
+    
             CB (cublasCscal(cublasHandle_, n_, cc(&minusOne), r, 1));
             CB (cublasCaxpy(cublasHandle_, n_, cc(&one), b, 1, r, 1));
             
@@ -136,7 +149,11 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
                          r, 1,
                          r0, 1));
     
+    
+    
             CB (cublasScnrm2 (cublasHandle_, n_, r0, 1, &r0Norm));
+    
+    
             
             CB (cublasCdotc (cublasHandle_, n_,
                          r0, 1,
@@ -146,41 +163,57 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
             restarts++;
             if (iOld == i-1) consecutiveRestarts++;
             iOld = i;
-            if (consecutiveRestarts >= Nrestarts) break;
+            if (consecutiveRestarts >= Nrestarts) {printf ("break on restart\n"); break;}
+    
+    
             
             alpha  = complex_t(1.0f, 0.0f);
             omega  = complex_t(1.0f, 0.0f);
         }
         
-        if (i == 0 && thrust::abs (rho) < zeroNorm) break;
+        if (i == 0 && thrust::abs (rho) < zeroNorm) {printf ("break on rho");break;}
         
+    
+    
         
         /// 2.0.0. beta = rho*alpha/(rhoOld*omega))
         beta = (rho/rhoOld) * (alpha/omega);
         cn(beta)
         
+    
+    
         /// 2.0.1. p -= omega*v
         omega = -omega;
         CB (cublasCaxpy(cublasHandle_, n_, cc(&omega), v, 1, p, 1));
         omega = -omega;
+    
+    
 
         /// 2.0.2. p *= beta
         CB (cublasCscal(cublasHandle_, n_, cc(&beta), p, 1));
 
+    
+    
         /// 2.0.3. p += r
         CB (cublasCaxpy(cublasHandle_, n_, cc(&one), r, 1, p, 1));
 
+    
+    
 
         /// 3. v = A*p
         
         (*matVec) (p, v);
+    
+    
         
         /// 4. alpha = rho/(r0, v)
         CB (cublasCdotc (cublasHandle_, n_, r0, 1, v, 1, cc(&alpha)));
         alpha = rho/alpha;
-        if ( thrust::abs (alpha) < zeroNorm) break;
+        if ( thrust::abs (alpha) < zeroNorm) {printf ("break on alpha"); break;}
         cn(alpha)
         
+    
+    
         /// 4. s = r - alpha*v
         CB (cublasCcopy (cublasHandle_, n_,
                          r, 1,
@@ -189,12 +222,16 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
         CB (cublasCaxpy(cublasHandle_, n_, cc(&alpha), v, 1, s, 1));
         alpha = -alpha;
 
+    
+    
         /// 5. t = A*s
         
         (*matVec) (s, t);
         
         /// 6. omega = (t, s)/(t, t)
         
+    
+    
         CB (cublasCdotc (cublasHandle_, n_, t, 1, t, 1, cc(&normC)));
         if (norm < zeroNorm) omega = zero;
         else
@@ -204,23 +241,33 @@ void BiCGStabCudaSolver::solve (MatVecFunctorBase* matVec, size_t nIter, float t
             cn(omega)
         }
 
+    
+    
         /// 6. x += alpha*p + omega*s
 
         CB (cublasCaxpy(cublasHandle_, n_, cc(&alpha), p, 1, x, 1));
         CB (cublasCaxpy(cublasHandle_, n_, cc(&omega), s, 1, x, 1));
 
+    
+    
         /// 7. r = s - omega*t
         CB (cublasCcopy (cublasHandle_, n_, s, 1, r, 1));
         omega = -omega;
         CB (cublasCaxpy(cublasHandle_, n_, cc(&omega), t, 1, r, 1));
         omega = -omega;
+    
+    
 
         CB (cublasScnrm2 (cublasHandle_, n_, r, 1, &norm));
-        if (norm < tolerance * bNorm) break;
+        if (norm < tolerance * bNorm) {printf ("break on tolerance\n"); break;}
     }
+    
+    
     CB(cublasDestroy(cublasHandle_));
+
+printf ("NITER = %d\n", i);
+
+    return total_byte - free_byte;
 #undef cn
 }
-
-
 

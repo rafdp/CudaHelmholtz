@@ -16,8 +16,8 @@ const double ANOMALY_SIZE_WORLD_X = 300,
              ANOMALY_SIZE_WORLD_Y = 300,
              ANOMALY_SIZE_WORLD_Z = 300;
 
-const int    DISCR_N = 29;
-const double DISCRETIZATION_NX = DISCR_N,
+int    DISCR_N = 11;
+double DISCRETIZATION_NX = DISCR_N,
              DISCRETIZATION_NY = DISCR_N,
              DISCRETIZATION_NZ = DISCR_N;
 
@@ -50,6 +50,19 @@ double3[Nreceivers] receiverCoords      x, y, z     in physical space
 
 int main ()
 {
+    FILE* readData = fopen ("size.ini", "r");
+    if (readData)
+    {
+        int read_size = 0;
+	fscanf (readData, "%d", &read_size);
+	fclose (readData);
+	DISCRETIZATION_NX = 
+		DISCRETIZATION_NY = 
+		DISCRETIZATION_NZ = read_size;
+    }
+
+
+
     FILE* inputData = fopen (INPUT_FILE, "wb");
 
     double coords[3] = {SOURCE_POS_WORLD_X,

@@ -88,22 +88,24 @@ __global__ void DevicePrintData (InputDataOnDevice * inputDataPtr)
     printf ("--------------------------------------------------------------\n");
 }
 
-__global__ void ReduceEmittersToReceiver (InputDataOnDevice * inputDataPtr,
-                                          complex_t* deviceKMatrixPtr,
-                                          complex_t* reductedA_solution,
-                                          int* sequence,
-                                          point_t* indexesPtr)
+__global__ 
+void ReduceEmittersToReceiver (complex_t* deviceKMatrixPtr,
+                               complex_t* reductedA_solution,
+                               int* sequence,
+                               point_t* indexesPtr,
+			       complex_t uiCoeff,
+			       int size3)
 {
     int receiver = blockIdx.x * blockDim.x + threadIdx.x;
     BTransformReduceUnary tempFunctor (deviceKMatrixPtr,
                                        indexesPtr, 
                                        receiver,
-                                       inputDataPtr);
+				       uiCoeff);
     ComplexAddition complexSum;
     *(reductedA_solution + receiver) = 
     thrust::transform_reduce (thrust::device, 
                               sequence,
-                              sequence + inputDataPtr->size3_,
+                              sequence + size3,
                               tempFunctor,
                               complex_t (0.0f, 0.0f),
                               complexSum);

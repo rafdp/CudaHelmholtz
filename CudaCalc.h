@@ -21,6 +21,7 @@
 #include <cufft.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <cuda_profiler_api.h>
 #endif
 
 #include "includes.h"
@@ -144,30 +145,36 @@ typedef thrust::complex<float> complex_t;
 typedef Point3DDevice_t<float> point_t;
 typedef Point3DDevice_t<int> pointInt_t;
 
-__global__ void PrintGrid (complex_t* data, int size, int div = 1);
-__global__ void PrintGrid3 (complex_t* data, int size);
-__global__ void DevicePrintData (InputDataOnDevice * inputDataPtr);
-__global__ void ReduceEmittersToReceiver (InputDataOnDevice * inputDataPtr,
-                                          complex_t* deviceKMatrixPtr,
-                                          complex_t* reductedA_solution,
-                                          int* sequence,
-                                          point_t* indexesPtr);
+__global__ 
+void PrintGrid (complex_t* data, int size, int div = 1);
+__global__ 
+void PrintGrid3 (complex_t* data, int size);
+__global__ 
+void DevicePrintData (InputDataOnDevice * inputDataPtr);
+__global__ 
+void ReduceEmittersToReceiver (complex_t* deviceKMatrixPtr,
+                               complex_t* reductedA_solution,
+                               int* sequence,
+                               point_t* indexesPtr,
+			       complex_t uiCoeff,
+			       int size3);
 struct BTransformReduceUnary
 {
     complex_t * deviceKMatrixPtr;
     point_t * deviceIndexesPtr;
     int receiverIdx;
-    InputDataOnDevice * inputDataPtr;
-    __device__
+    const complex_t& uiCoeff;
+__device__
     BTransformReduceUnary (complex_t * deviceKMatrixPtr_, 
                            point_t * deviceIndexesPtr_, 
                            int receiverIdx_,
-                           InputDataOnDevice* inputDataPtr_) :
+			   const complex_t& uiCoeff_) :
         deviceKMatrixPtr (deviceKMatrixPtr_),
         deviceIndexesPtr (deviceIndexesPtr_),
-        receiverIdx (receiverIdx_),
-        inputDataPtr (inputDataPtr_)
+        receiverIdx      (receiverIdx_),
+	uiCoeff          (uiCoeff_)
     {}
+
     __device__
     complex_t operator() (int emitterIdx)
     {
@@ -180,7 +187,7 @@ struct BTransformReduceUnary
                       rec.y - em.y,
                       rec.z - em.z};
         float len = dr.len ();
-        return *(deviceKMatrixPtr+emitterIdx) * thrust::exp (inputDataPtr->uiCoeff_ * len) / (4 * (-3.141592f) * len);
+        return *(deviceKMatrixPtr+emitterIdx) * thrust::exp (uiCoeff * len) / (4 * (-3.141592f) * len);
 
     }
 };

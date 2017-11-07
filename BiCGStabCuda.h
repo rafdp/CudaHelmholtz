@@ -22,7 +22,7 @@ class BiCGStabCudaSolver
     BiCGStabCudaSolver (int n, complex_t* device_b, complex_t* device_workspace);
 
     
-    void solve (MatVecFunctorBase* matVec, size_t nIter = 5000, float tol = 1e-6f);
+    size_t solve (MatVecFunctorBase* matVec, size_t nIter = 5000, float tol = 1e-6f);
 };
 
 
