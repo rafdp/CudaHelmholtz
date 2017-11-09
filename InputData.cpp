@@ -15,15 +15,15 @@ const double ANOMALY_SIZE_WORLD_X = 300,
              ANOMALY_SIZE_WORLD_Y = 300,
              ANOMALY_SIZE_WORLD_Z = 300;
 
-const double DISCRETIZATION_NX = 128,
-             DISCRETIZATION_NY = 128,
-             DISCRETIZATION_NZ = 128;
+const double DISCRETIZATION_NX = 200,
+             DISCRETIZATION_NY = 200,
+             DISCRETIZATION_NZ = 200;
 
 const double RECEIVER_X_BEGIN_WORLD = 500,
              RECEIVER_X_END_WORLD   = 1500,
              RECEIVER_Y_WORLD       = 0,
              RECEIVER_Z_WORLD       = 0,
-             N_RECEIVERS            = 32;
+             N_RECEIVERS            = 100;
 
 const double FREQUENCY = 5;
 const double SOUND_SPEED = 3000;
