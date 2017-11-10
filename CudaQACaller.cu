@@ -231,7 +231,11 @@ __global__ void DevicePrintData ()
 extern "C"
 void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<float> >* retData)
 {
+    size_t sys_byte ;
+    size_t total_byte ;
 
+    cudaMemGetInfo( &sys_byte, &total_byte );
+    sys_byte = total_byte - sys_byte;
 	
 
 	InputData_t& inputData = *inputDataPtr_;
@@ -334,10 +338,12 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 
 	thrust::transform (Points.begin(), Points.end(), Ui.begin(), UiMultiply()); // filling Ui array with G(r)
     	cudaDeviceSynchronize ();
+    //thrust::for_each (Ui.begin(), Ui.end(), PrintComplexVector());
+//cudaDeviceSynchronize ();
 	printf ("transformed\n");
 	//PrintComplexVector printC;
 	//thrust::for_each (Ui.begin(), Ui.begin() + 20, printC);
-    	cudaDeviceSynchronize ();
+    	//cudaDeviceSynchronize ();
 
 	thrust::device_vector <thrust::complex <float> > Ub (size3);
 	tempPtr = Ub.data ().get ();
@@ -348,10 +354,12 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 	thrust::device_vector <thrust::complex<float> > BornForReciever(size3);
 		thrust::complex <float> init = (0.0f, 0.0f);complexPlus binary_op;
 	
-
+    //printf ("convolution calculation started\n");
+    //printf ("000%% done");
 	for (int i = 0; i < size3; i ++)
 	{
-		Point3DDevice_t <float> rj = Points [i];
+        if ((i % 10000) == 0) printf ("\b\b\b\b\b\b\b\b\b%3d%% done", (i*100)/size3);		
+        Point3DDevice_t <float> rj = Points [i];
 		//printf ("started counting recv n %d\n", i);
 
 		thrust::tabulate(BornForReciever.begin(), BornForReciever.end(), ComplexIndex()); 
@@ -359,14 +367,10 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 		//float init = 0; //ui to global
 		
 
-		Ub [i] = thrust::transform_reduce(BornForReciever.begin (), BornForReciever.end (), GreenOperatorBorn (rj), init, binary_op); //born calc to global ui
-		cudaDeviceSynchronize ();
-		//scanf ("%d", &i);
+		Ub [i] = thrust::transform_reduce(BornForReciever.begin (), BornForReciever.end (), GreenOperatorBorn (rj), init, binary_op); //born calc
 	}
-	cudaDeviceSynchronize ();
-	thrust::for_each (Ub.begin () + 100, Ub.begin () + 400, PrintComplexVector());
 
-
+    //getchar();
 	for (int i = 0; i < recvNum; i ++)
 	{
 		Point3D_t rj = inputData.receivers_[i];
@@ -387,6 +391,21 @@ void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<
 	cudaEventElapsedTime(&time, start, stop);
 	printf ("Time for the kernel: %f ms\n", time);
 	//////////////////////////////////////////////
+
+    size_t free_byte ;
+
+    cudaMemGetInfo( &free_byte, &total_byte );
+
+    #define WRITE_FILE(suffix, data, coeff) \
+    FILE* fft_##suffix = fopen ("asympt" #suffix ".txt", "a"); \
+    if (!fft_##suffix) return; \
+    float value##suffix = (data); \
+    fprintf (fft_##suffix, "%d %f\n", inputData.discretizationSize_[0], value##suffix/coeff); \
+    fclose (fft_##suffix);
+
+    WRITE_FILE (time, time, 1); 
+    WRITE_FILE (size, (total_byte - free_byte - sys_byte)/(1024.0f*1024), 1); 
+    printf ("tatal = %d, free = %d", total_byte, free_byte);
 
 }
 
