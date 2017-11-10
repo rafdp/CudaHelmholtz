@@ -360,7 +360,12 @@ extern "C"
 void ExternalKernelCaller (InputData_t* inputDataPtr_, std::vector<std::complex<float> >* retData)
 {
 
-	
+	size_t sys_byte ;
+    size_t total_byte ;
+
+    cudaMemGetInfo( &sys_byte, &total_byte );
+    sys_byte = total_byte - sys_byte;
+    
 
 	InputData_t& inputData = *inputDataPtr_;
 	InputDataOnDevice* deviceInputData = nullptr;
@@ -557,6 +562,21 @@ cufftPlan2d(&plan, 2*SIZE1_, 2*SIZE1_, CUFFT_C2C);
 	cudaEventElapsedTime(&time, start, stop);
 	printf ("Time for the kernel: %f ms\n", time);
 	//////////////////////////////////////////////
+
+    size_t free_byte ;
+
+    cudaMemGetInfo( &free_byte, &total_byte );
+
+    #define WRITE_FILE(suffix, data, coeff) \
+    FILE* fft_##suffix = fopen ("asympt" #suffix ".txt", "a"); \
+    if (!fft_##suffix) return; \
+    float value##suffix = (data); \
+    fprintf (fft_##suffix, "%d %f\n", inputData.discretizationSize_[0], value##suffix/coeff); \
+    fclose (fft_##suffix);
+
+    WRITE_FILE (time, time, 1); 
+    WRITE_FILE (size, (total_byte - free_byte - sys_byte)/(1024.0f*1024), 1); 
+    printf ("tatal = %d, free = %d", total_byte, free_byte);
 
 }
 
