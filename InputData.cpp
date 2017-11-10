@@ -16,7 +16,7 @@ const double ANOMALY_SIZE_WORLD_X = 300,
              ANOMALY_SIZE_WORLD_Y = 300,
              ANOMALY_SIZE_WORLD_Z = 300;
 
-int    DISCR_N = 11;
+int    DISCR_N = 99;
 double DISCRETIZATION_NX = DISCR_N,
              DISCRETIZATION_NY = DISCR_N,
              DISCRETIZATION_NZ = DISCR_N;

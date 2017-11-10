@@ -103,31 +103,6 @@ struct IndexFromSequence
 
 #ifdef FFT_FUNCTOR
 
-struct MatVecFunctor : MatVecFunctorBase
-{
-    cublasHandle_t cublasH;
-    cuComplex* device_A_;
-    size_t size_;
-    
-    __host__
-    MatVecFunctor (cublasHandle_t cH,
-                   complex_t * deviceAMatrixPtr,
-                   size_t size) :
-        cublasH   (cH),
-        device_A_ (reinterpret_cast<cuComplex*> (deviceAMatrixPtr)),
-        size_     (size)
-    {}
-
-    __host__
-    void operator()(cuComplex* source, cuComplex* destination) 
-    {
-        cuComplex one = {1.0f, 0.0f};
-        cuComplex zero = {0.0f, 0.0f};
-        cublasCgemv (cublasH, CUBLAS_OP_N, size_, size_, &one,
-                    device_A_, size_, source, 1, &zero, destination, 1);
-    }
-};
-
 #define CENTER_INDEX (2*size.y+1)*size.x
 struct FillRadialQ_lq
 {
@@ -718,4 +693,29 @@ __device__
 
     }
 };
+struct MatVecFunctor : MatVecFunctorBase
+{
+    cublasHandle_t cublasH;
+    cuComplex* device_A_;
+    size_t size_;
+    
+    __host__
+    MatVecFunctor (cublasHandle_t cH,
+                   complex_t * deviceAMatrixPtr,
+                   size_t size) :
+        cublasH   (cH),
+        device_A_ (reinterpret_cast<cuComplex*> (deviceAMatrixPtr)),
+        size_     (size)
+    {}
+
+    __host__
+    void operator()(cuComplex* source, cuComplex* destination) 
+    {
+        cuComplex one = {1.0f, 0.0f};
+        cuComplex zero = {0.0f, 0.0f};
+        cublasCgemv (cublasH, CUBLAS_OP_N, size_, size_, &one,
+                    device_A_, size_, source, 1, &zero, destination, 1);
+    }
+};
+
 #endif

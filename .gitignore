@@ -1,0 +1,8 @@
+*
+!*.*
+*.o
+*.txt
+*.png
+*.data
+statplot.p
+*.ini
