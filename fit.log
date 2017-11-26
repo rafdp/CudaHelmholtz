@@ -1,0 +1,115 @@
+
+
+*******************************************************************************
+Sat Nov 11 00:57:40 2017
+
+
+FIT:    data read from "asympttime.txt" using 1:2
+        format = x:z
+        x range restricted to [0.00000 : 100.000]
+        #datapoints = 98
+        residuals are weighted equally (unit weight)
+
+function used for fitting: f(x)
+	f(x) = x**4*ln(x)*a + b
+fitted parameters initialized with current variable values
+
+
+
+*******************************************************************************
+Sat Nov 11 00:58:06 2017
+
+
+FIT:    data read from "asympttime.txt" using 1:2
+        format = x:z
+        x range restricted to [0.00000 : 100.000]
+        #datapoints = 98
+        residuals are weighted equally (unit weight)
+
+function used for fitting: f(x)
+	f(x) = x**4*log(x)*a + b
+fitted parameters initialized with current variable values
+
+iter      chisq       delta/lim  lambda   a             b            
+   0 2.1407977312e+18   0.00e+00  1.05e+08    1.000000e+00   1.000000e+00
+   4 7.4346701596e+07  -4.87e-05  1.05e+04    2.090730e-05   1.000001e+00
+
+After 4 iterations the fit converged.
+final sum of squares of residuals : 7.43467e+07
+rel. change during last iteration : -4.87204e-10
+
+degrees of freedom    (FIT_NDF)                        : 96
+rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 880.025
+variance of residuals (reduced chisquare) = WSSR/ndf   : 774445
+
+Final set of parameters            Asymptotic Standard Error
+=======================            ==========================
+a               = 2.09073e-05      +/- 7.466e-07    (3.571%)
+b               = 1                +/- 110.3        (1.103e+04%)
+
+correlation matrix of the fit parameters:
+                a      b      
+a               1.000 
+b              -0.592  1.000 
+
+
+*******************************************************************************
+Sat Nov 11 00:58:33 2017
+
+
+FIT:    data read from "asympttime.txt" using 1:2
+        format = x:z
+        x range restricted to [0.00000 : 100.000]
+        #datapoints = 98
+        residuals are weighted equally (unit weight)
+
+function used for fitting: f(x)
+	f(x) = x**4*log(x)*a
+fitted parameters initialized with current variable values
+
+iter      chisq       delta/lim  lambda   a            
+   0 2.1407977140e+18   0.00e+00  1.48e+08    1.000000e+00
+   4 7.4374895253e+07  -3.19e-09  1.48e+04    2.091131e-05
+
+After 4 iterations the fit converged.
+final sum of squares of residuals : 7.43749e+07
+rel. change during last iteration : -3.1856e-14
+
+degrees of freedom    (FIT_NDF)                        : 97
+rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 875.643
+variance of residuals (reduced chisquare) = WSSR/ndf   : 766751
+
+Final set of parameters            Asymptotic Standard Error
+=======================            ==========================
+a               = 2.09113e-05      +/- 5.985e-07    (2.862%)
+
+
+*******************************************************************************
+Sat Nov 11 00:59:01 2017
+
+
+FIT:    data read from "asympttime.txt" using 1:2
+        format = x:z
+        x range restricted to [0.00000 : 100.000]
+        #datapoints = 98
+        residuals are weighted equally (unit weight)
+
+function used for fitting: f(x)
+	f(x) = x**4*log(x)*a
+fitted parameters initialized with current variable values
+
+iter      chisq       delta/lim  lambda   a            
+   0 2.1407977140e+18   0.00e+00  1.48e+08    1.000000e+00
+   4 7.4374895253e+07  -3.19e-09  1.48e+04    2.091131e-05
+
+After 4 iterations the fit converged.
+final sum of squares of residuals : 7.43749e+07
+rel. change during last iteration : -3.1856e-14
+
+degrees of freedom    (FIT_NDF)                        : 97
+rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 875.643
+variance of residuals (reduced chisquare) = WSSR/ndf   : 766751
+
+Final set of parameters            Asymptotic Standard Error
+=======================            ==========================
+a               = 2.09113e-05      +/- 5.985e-07    (2.862%)
