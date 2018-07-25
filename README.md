@@ -1,8 +1,7 @@
 # CudaHelmholtz
 This project is a CUDA adaptation of various solutions of acoustic integral equations. 
-A source, some receivers and an acoustic anomaly are placed in halfspace. The forward problem needs to be solved.
-The anomaly location and properties are known, and the magnetic field at the receivers is to be found. 
-The main goal was to make computations substantially faster.
+A source, some receivers and an acoustic anomaly are placed in halfspace. The forward problem needs to be solved: anomaly location and properties are known, and the wavefield at the receivers is to be found. 
+The main goal was to make computations substantially faster compared to a CPU version. 
 
 ## Mathematical model
 The scalar wavefield is described by Helmholtz's equation, which can be transformed into an integral equation. 
@@ -16,10 +15,10 @@ Read here on approximations: Zhdanov M.S. Geophysical Inverse Theory and Regular
 ## CUDA 
 The computations needed repeated multiplication of simmetrical matrices and vectors, 
 which can be done faster on GPU as it can be done in number of rows independent threads.
-The process can be further sped up through FFT using cuFFT as the matrices are simmetrical.
-For general memory usage thrust was used.
-For the implementation of BiCGSTAB, which involved numerous matrix-vector and vector-vector multiplications, cuBLAS was used.
-cuSolver was also utilized for comparison with BiCGSTAB (QR solution).
+The process can be further sped up through FFT using **cuFFT** as the matrices are simmetrical.
+For general memory usage **thrust** was used.
+For the implementation of BiCGSTAB, which involved numerous matrix-vector and vector-vector multiplications, **cuBLAS** was used.
+**cuSolver** was also utilized for comparison with BiCGSTAB (QR solution).
 
 ## Results
 GPU vs CPU: ~60 times faster  
