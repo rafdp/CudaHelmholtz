@@ -22,10 +22,8 @@ For the implementation of BiCGSTAB, which involved numerous matrix-vector and ve
 cuSolver was also utilized for comparison with BiCGSTAB (QR solution).
 
 ## Results
-GPU vs CPU: ~60 times faster
-
-QA with FFT vs QA with basic matvec multiplication (still on GPU and with reduction): ~500 times faster
-
+GPU vs CPU: ~60 times faster  
+QA with FFT vs QA with basic matvec multiplication (still on GPU and with reduction): ~500 times faster  
 QL with FFT vs QL with basic matvec multiplication: ~40 times faster
 
 [Thesises](https://abitu.net/public/admin/mipt-conference/FPMI.pdf) p.69
