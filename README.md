@@ -25,6 +25,10 @@ GPU vs CPU: ~60 times faster
 QA with FFT vs QA with basic matvec multiplication (still on GPU and with reduction): ~500 times faster  
 QL with FFT vs QL with basic matvec multiplication: ~40 times faster
 
+
+
+Developed in contribution with @higheroplane
+
 [Thesises](https://abitu.net/public/admin/mipt-conference/FPMI.pdf) p.69
 
 [Presentation](https://www.dropbox.com/s/9wp4vxnkdam3bc6/CudaHelmholtz.pdf?dl=0)
